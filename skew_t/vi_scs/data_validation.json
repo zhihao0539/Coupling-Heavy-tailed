@@ -1,0 +1,19 @@
+{
+  "passed": true,
+  "records": 4000,
+  "new_scs_records": 1000,
+  "unchanged_other_method_records": 3000,
+  "initial_states_sha256": "868c7dec984cece506818f78251ad34bea468fa496a58280700f9faaa31e3ada",
+  "geometric_checks": {
+    "passed": true,
+    "roundtrip_max_relative_error": 1.874210246191908e-14,
+    "sphere_norm_max_error": 4.440892098500626e-16,
+    "axial_map_max_error": 2.842170943040401e-14,
+    "axial_logtarget_max_error": 1.1368683772161603e-13,
+    "surface_jacobian_max_log_error": 1.4210854715202004e-13,
+    "directional_gradient_finite_difference_error": 2.513789176816772e-10,
+    "batch_scalar_counts_equal": true,
+    "axial_kernel_matches_original_counts": true,
+    "all_3000_inverse_states_in_bright_cap": true
+  }
+}

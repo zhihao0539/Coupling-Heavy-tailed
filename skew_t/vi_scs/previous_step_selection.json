@@ -1,0 +1,22 @@
+{
+  "dcs_bw": {
+    "method": "dcs_bw",
+    "step": 0.14,
+    "acceptance": 0.39962169011948656,
+    "acceptance_se": 0.00221955598034499,
+    "boundary_rejection": 0.5192749999999999,
+    "native_esjd": 0.007676698445338117
+  },
+  "scs": {
+    "method": "scs",
+    "step": 0.15,
+    "acceptance": 0.40642159768865366,
+    "acceptance_se": 0.0021343116321439547,
+    "boundary_rejection": 0.14190000000000003,
+    "native_esjd": 0.35982587571947305
+  },
+  "seed": 26092902,
+  "stationary_draws": 40000,
+  "scs_rule": "Choose h nearest 0.40 marginal acceptance; retain old h=3 in a sensitivity run.",
+  "dcs_rule": "Choose gamma/R nearest 0.40 marginal acceptance on independent exact stationary draws."
+}

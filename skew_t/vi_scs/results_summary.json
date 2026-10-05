@@ -1,0 +1,104 @@
+{
+  "methods": [
+    {
+      "method": "stereographic",
+      "replicates": 1000,
+      "met": 558,
+      "censored": 442,
+      "km_median": 28466.0,
+      "finite_only_median": 78.5,
+      "restricted_mean_1m": 458504.412,
+      "mean_95_low": 428361.51825,
+      "mean_95_high": 488678.22995,
+      "q90": null,
+      "finite_max": 894837,
+      "mean_stopped_acceptance": 0.1930864473111111,
+      "pooled_stopped_acceptance": 0.07346230400068647
+    },
+    {
+      "method": "euclidean",
+      "replicates": 1000,
+      "met": 987,
+      "censored": 13,
+      "km_median": 15356.0,
+      "finite_only_median": 14961.0,
+      "restricted_mean_1m": 55963.372,
+      "mean_95_low": 47236.526,
+      "mean_95_high": 65164.94565,
+      "q90": 101039.0,
+      "finite_max": 973989,
+      "mean_stopped_acceptance": 0.26504864216808227,
+      "pooled_stopped_acceptance": 0.3903292853761564
+    },
+    {
+      "method": "scs",
+      "replicates": 1000,
+      "met": 1000,
+      "censored": 0,
+      "km_median": 34.0,
+      "finite_only_median": 34.0,
+      "restricted_mean_1m": 40.876,
+      "mean_95_low": 39.261975,
+      "mean_95_high": 42.506025,
+      "q90": 73.0,
+      "finite_max": 189,
+      "mean_stopped_acceptance": 0.4411355939150731,
+      "pooled_stopped_acceptance": 0.4057515412466973
+    },
+    {
+      "method": "dcs_bw",
+      "replicates": 1000,
+      "met": 1000,
+      "censored": 0,
+      "km_median": 1341.0,
+      "finite_only_median": 1342.0,
+      "restricted_mean_1m": 1691.961,
+      "mean_95_low": 1616.8506750000001,
+      "mean_95_high": 1767.5015,
+      "q90": 3350.0,
+      "finite_max": 9278,
+      "mean_stopped_acceptance": 0.3971185549043009,
+      "pooled_stopped_acceptance": 0.39545178641824485
+    }
+  ],
+  "scs_before_vi": {
+    "mean": 16.203,
+    "median": 14.0
+  },
+  "new_minus_old_scs_mean": 24.673,
+  "paired_difference_95": [
+    22.928,
+    26.387025
+  ],
+  "scs_vi_to_previous_mean_ratio": 2.522742701968771,
+  "scs_vi_to_previous_ratio_95": [
+    2.385494362836306,
+    2.6653687717711856
+  ],
+  "dcs_to_scs_vi_mean_ratio": 41.392528623152955,
+  "dcs_to_scs_vi_ratio_95": [
+    38.92369589318434,
+    43.86966761099733
+  ],
+  "bootstrap_seed": 26093006,
+  "bootstrap_resamples": 10000,
+  "mean_definition": "mean of min(tau, 1e6); unrestricted sample mean if all met",
+  "median_definition": "first empirical survival crossing at 0.5",
+  "provenance": "1000 new VI-SCS rows; 3000 DCS, Euclidean and stereographic rows retained unchanged",
+  "stationary_scs_acceptance": {
+    "scs": {
+      "step": 0.08,
+      "acceptance": 0.40741702937120283,
+      "acceptance_se": 0.0019029509330544378,
+      "boundary_rejection": 0.061474999999999946,
+      "native_esjd": 0.17703161585268293
+    },
+    "tuning_seed": 26093002,
+    "stationary_draws": 40000,
+    "target_acceptance": 0.4,
+    "independent_check_seed": 26093003,
+    "independent_check_acceptance": 0.4030345653810281,
+    "independent_check_se": 0.0018913529866074158,
+    "independent_check_dark_side_rejection": 0.05954999999999999
+  }
+}

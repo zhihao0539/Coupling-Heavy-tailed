@@ -1,0 +1,30 @@
+[
+  {
+    "method": "stereographic",
+    "repetitions": 1000,
+    "met": 1000,
+    "censored": 0,
+    "mean_meeting_time": 2293.805,
+    "restricted_mean": 2293.805,
+    "mean_mcse": 14.220499765781392,
+    "median": 2285.0,
+    "q95": 3056.3499999999995,
+    "maximum_observed": 4077.0,
+    "acceptance_rate": 0.2356884,
+    "acceptance_mcse": 0.0001263734572237805
+  },
+  {
+    "method": "euclidean",
+    "repetitions": 1000,
+    "met": 1000,
+    "censored": 0,
+    "mean_meeting_time": 9674.51,
+    "restricted_mean": 9674.51,
+    "mean_mcse": 65.85849150111778,
+    "median": 9495.5,
+    "q95": 13304.349999999997,
+    "maximum_observed": 17787.0,
+    "acceptance_rate": 0.245655825,
+    "acceptance_mcse": 0.001513537468933042
+  }
+]

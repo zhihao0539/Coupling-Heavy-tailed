@@ -1,0 +1,7 @@
+{
+  "python": "3.13.0",
+  "numpy": "2.3.2",
+  "platform": "macOS-27.0-arm64-arm-64bit-Mach-O",
+  "workers": 4,
+  "wall_seconds_this_invocation": 147.2619895000007
+}

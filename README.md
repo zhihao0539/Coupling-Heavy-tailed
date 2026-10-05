@@ -1,5 +1,15 @@
 # Coupling heavy-tailed distributions
 
+Reproducible maximal-reflection coupling experiments for Student's t regression and a skew-t target.
+
+## Student's t regression (Section 5.2)
+
+The [student_t_regression](student_t_regression/) directory contains a separate implementation of the Boston Housing comparison, preserving the original model, proposal scales and 1,000-repetition design. It includes the supplied dataset, reference Python kernels, accelerated C++ backend, initial states, results, validation and reproduction instructions.
+
+Both methods met in all 1,000 trials: mean meeting times were 2,293.805 (stereographic) and 9,674.510 (Euclidean), with full-run acceptance rates 23.57% and 24.57%. See the [figure and complete settings](student_t_regression/README.md). Use that directory's requirements and commands for this experiment.
+
+## Skew-t comparison (Section 5.3)
+
 Reproducible maximal-reflection coupling experiments for a 100-dimensional skew-t target. The code compares sub-Cauchy sampling (SCS), DCS-Ball walk, stereographic sampling and Euclidean random-walk Metropolis using 1,000 common initial pairs and a meeting-time cutoff of 1,000,000 iterations.
 
 SCS rejects proposals on the dark side directly, without stepping out. The target has degrees of freedom ν = 2, location zero, scale I and skewness (100, −100, 0, …, 0).

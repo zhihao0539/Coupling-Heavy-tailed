@@ -1,0 +1,38 @@
+{
+  "replicates_per_method": 1000,
+  "new_replicates_per_method": 900,
+  "retained_replicates_per_method": 100,
+  "methods": [
+    "scs",
+    "dcs_bw",
+    "euclidean",
+    "stereographic"
+  ],
+  "max_steps": 1000000,
+  "initialization_seed": 26092910,
+  "method_rng_seeds": {
+    "scs": 26092913,
+    "dcs_bw": 26092923,
+    "euclidean": 26092943,
+    "stereographic": 26092933
+  },
+  "parameters": {
+    "scs_h": 0.15,
+    "dcs_gamma_over_R": 0.14,
+    "stereographic_h": 14.0,
+    "euclidean_sigma": 0.26
+  },
+  "initialization": "same Euclidean pair for each method; uniform sub-Cauchy bright-side starting points",
+  "precision": "float64",
+  "first_100_provenance": "copied from the completed 100-replicate comparison",
+  "plot_style_source": "original_plot_format.py",
+  "new_stereographic_backend": {
+    "implementation": "stereographic_native.cpp",
+    "rng": "std::mt19937_64",
+    "seed_rule": "splitmix64(26092933 + global_replicate_id)",
+    "replicates": "100..999",
+    "all_new_stereographic_rows_use_this_backend": true,
+    "validation": "native_validation.json"
+  },
+  "all_4000_observations_complete": true
+}

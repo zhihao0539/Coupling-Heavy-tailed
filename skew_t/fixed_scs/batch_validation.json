@@ -1,0 +1,18 @@
+{
+  "scs": {
+    "first_six_outputs_identical": true,
+    "maximum_final_state_difference": 5.551115123125783e-17
+  },
+  "dcs_bw": {
+    "first_six_outputs_identical": true,
+    "maximum_final_state_difference": 3.0531133177191805e-16
+  },
+  "euclidean": {
+    "first_six_outputs_identical": true,
+    "maximum_final_state_difference": 1.8110513089197866e-15
+  },
+  "stereographic": {
+    "first_six_outputs_identical": true,
+    "maximum_final_state_difference": 5.551115123125783e-17
+  }
+}

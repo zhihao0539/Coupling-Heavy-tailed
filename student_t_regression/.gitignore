@@ -1,7 +1,0 @@
-__pycache__/
-native_build/
-*.tmp
-.venv/
-.DS_Store
-pilot/
-results/

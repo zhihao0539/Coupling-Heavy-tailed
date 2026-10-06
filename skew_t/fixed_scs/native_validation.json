@@ -1,6 +1,0 @@
-{
-  "logcdf_max_error_vs_scipy": 5.684341886080802e-14,
-  "target_max_error_vs_jax": 1.1368683772161603e-13,
-  "matched_single_step_decisions": 200,
-  "max_single_step_state_error": 1.1102230246251565e-16
-}

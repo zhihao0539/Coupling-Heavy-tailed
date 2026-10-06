@@ -10,7 +10,8 @@ def times(rows):
     return np.array([int(r['meeting_time']) if r['met'].lower()=='true' else np.inf for r in rows])
 def main():
     previous=read('previous_meeting_times.csv');new=read('scs_vi_meeting_times.csv')
-    retained=[r for r in previous if r['method']!='scs']
+    assert {r['method'] for r in previous}=={'stereographic','euclidean','dcs_bw'}
+    retained=previous
     assert len(new)==1000 and len(retained)==3000
     rows=retained+new;rows.sort(key=lambda r:(METHODS.index(r['method']),int(r['replicate'])))
     for method in METHODS:
@@ -38,16 +39,10 @@ def main():
                         'q90':float(sorted_tau[899]) if np.isfinite(sorted_tau[899]) else None,
                         'finite_max':int(finite.max()),'mean_stopped_acceptance':float(acc.mean()),
                         'pooled_stopped_acceptance':float(np.dot(acc,it)/it.sum())})
-    old_scs=sorted([r for r in previous if r['method']=='scs'],key=lambda r:int(r['replicate']))
-    old_tau=times(old_scs);new_tau=all_times['scs'];dcs_tau=all_times['dcs_bw']
-    assert np.isfinite(new_tau).all() and np.isfinite(dcs_tau).all() and np.isfinite(old_tau).all()
+    new_tau=all_times['scs'];dcs_tau=all_times['dcs_bw']
+    assert np.isfinite(new_tau).all() and np.isfinite(dcs_tau).all()
     newboot=new_tau[indices].mean(axis=1)
-    paired_difference=(new_tau-old_tau)[indices].mean(axis=1)
-    result={'methods':summary,'scs_before_vi':{'mean':float(old_tau.mean()),'median':float(np.median(old_tau))},
-            'new_minus_old_scs_mean':float(np.mean(new_tau-old_tau)),
-            'paired_difference_95':np.quantile(paired_difference,[.025,.975]).tolist(),
-            'scs_vi_to_previous_mean_ratio':float(new_tau.mean()/old_tau.mean()),
-            'scs_vi_to_previous_ratio_95':np.quantile(newboot/old_tau[indices].mean(axis=1),[.025,.975]).tolist(),
+    result={'methods':summary,
             'dcs_to_scs_vi_mean_ratio':float(dcs_tau.mean()/new_tau.mean()),
             'dcs_to_scs_vi_ratio_95':np.quantile(dcs_tau[indices].mean(axis=1)/newboot,[.025,.975]).tolist(),
             'bootstrap_seed':26093006,'bootstrap_resamples':10000,

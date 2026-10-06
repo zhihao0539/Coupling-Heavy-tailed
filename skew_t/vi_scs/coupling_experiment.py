@@ -5,7 +5,8 @@ Dependencies: Python >=3.10, numpy, scipy, jax, matplotlib.
 Shared target, DCS fitting, transformations and coupling kernels.
 Use the experiment runners described in README.md to reproduce 1,000 pairs.
 Input: initial_states.npz and saved fitted parameters alongside this module.
-The original SCS results used stepping out and are NOT used in the new plot.
+The axial SCS kernel is retained as a numerical validation reference for the
+VI-fitted implementation; SCS proposals on the dark side are rejected directly.
 """
 from pathlib import Path
 import argparse, csv, hashlib, json, math, os, time

@@ -61,20 +61,6 @@
       "pooled_stopped_acceptance": 0.39545178641824485
     }
   ],
-  "scs_before_vi": {
-    "mean": 16.203,
-    "median": 14.0
-  },
-  "new_minus_old_scs_mean": 24.673,
-  "paired_difference_95": [
-    22.928,
-    26.387025
-  ],
-  "scs_vi_to_previous_mean_ratio": 2.522742701968771,
-  "scs_vi_to_previous_ratio_95": [
-    2.385494362836306,
-    2.6653687717711856
-  ],
   "dcs_to_scs_vi_mean_ratio": 41.392528623152955,
   "dcs_to_scs_vi_ratio_95": [
     38.92369589318434,

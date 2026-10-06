@@ -8,7 +8,7 @@ The learning rate was 0.01 for the first 3,000 iterations and 0.002 for the rema
 
 # Results paragraph
 
-With variationally fitted transformations and proposal sizes tuned to approximately 40% stationary acceptance, both SCS and DCS-Ball walk met in all 1,000 replicates. Their mean meeting times were 40.88 and 1,691.96 iterations, respectively, giving a DCS-to-SCS mean ratio of 41.39 (paired bootstrap 95% interval: 38.92–43.87). The updated SCS scale was R = 1.32709 and its proposal step size was h = 0.08. Relative to the earlier SCS settings, whose mean meeting time was 16.20 iterations, variational fitting followed by acceptance-rate retuning increased the mean meeting time in this experiment. The variational objective measures the quality of the transformed-density approximation and does not directly optimize coupling meeting times.
+With variationally fitted transformations and proposal sizes tuned to approximately 40% stationary acceptance, both SCS and DCS-Ball walk met in all 1,000 replicates. Their mean meeting times were 40.88 and 1,691.96 iterations, respectively, giving a DCS-to-SCS mean ratio of 41.39 (paired bootstrap 95% interval: 38.92–43.87). The updated SCS scale was R = 1.32709 and its proposal step size was h = 0.08. The variational objective measures the quality of the transformed-density approximation and does not directly optimize coupling meeting times.
 
 # Figure caption
 

@@ -130,7 +130,7 @@
   "replicates": 1000,
   "meeting_seed": 26092913,
   "max_iterations": 1000000,
-  "initialization": "exact same 1000 Euclidean initial pairs as previous comparison; inverse-map under newly fitted SCS",
+  "initialization": "1000 common Euclidean initial pairs stored in initial_states.npz; inverse-map under fitted SCS",
   "dark_side": "reject separately in each chain, no stepping out",
   "sources": {
     "SCS": "https://arxiv.org/pdf/2601.11066 (Section 3, Eq. 7)",

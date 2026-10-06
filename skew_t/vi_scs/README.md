@@ -1,6 +1,6 @@
 # VI-tuned sub-Cauchy coupling: 1,000 replicates
 
-This update independently fits the sub-Cauchy transformation, retunes its proposal step, and reruns all 1,000 SCS pairs. The DCS, Euclidean and stereographic observations are retained exactly from the previous 1,000-replicate comparison. The previous fixed-parameter SCS results remain available in `previous_meeting_times.csv`.
+This experiment independently fits the sub-Cauchy transformation, tunes its proposal step, and runs 1,000 SCS pairs. The comparison also includes 1,000 DCS, Euclidean and stereographic pairs each, using common Euclidean initial states. `previous_meeting_times.csv` supplies only the 3,000 observations for those other three methods.
 
 ## Main findings
 
@@ -11,9 +11,9 @@ This update independently fits the sub-Cauchy transformation, retunes its propos
 | SCS with VI | 1,000/1,000 | 34 | 40.876 | 39.262–42.506 |
 | DCS-Ball walk with VI | 1,000/1,000 | 1,341 | 1,691.961 | 1,616.851–1,767.502 |
 
-The median uses the first empirical survival crossing of 0.5; the usual two-central-order-statistic median for DCS is 1,342. Restricted means retain censored pairs at the cutoff. The new bootstrap seed is 26093006, with 10,000 paired resamples, so intervals for retained methods differ slightly from the earlier figure's bootstrap calculation even though all observations are identical. Intervals condition on the frozen fits and tuning.
+The median uses the first empirical survival crossing of 0.5; the usual two-central-order-statistic median for DCS is 1,342. Restricted means retain censored pairs at the cutoff. The bootstrap seed is 26093006, with 10,000 paired resamples. Intervals condition on the frozen fits and tuning.
 
-The VI-fitted, acceptance-retuned SCS has a mean meeting time 2.523 times the previous SCS mean of 16.203 (paired 95% interval: 2.385–2.665). Both transformation and step size changed: the earlier h was 0.15 and the new h is 0.08. This is not an isolated estimate of the effect of either change. The mean DCS-to-new-SCS ratio is 41.393 (paired 95% interval: 38.924–43.870). VI optimizes a density-approximation objective, not the coupling's meeting time. The figure and text report the observed increase in SCS meeting times.
+The mean DCS-to-SCS ratio is 41.393 (paired 95% interval: 38.924–43.870). VI optimizes a density-approximation objective rather than the coupling meeting time.
 
 ## SCS transformation and fitted parameters
 
@@ -73,7 +73,7 @@ The generalized inverse and map were checked on all 2,000 saved initial states a
 - `meeting_times.csv`: final 4,000 observations; `scs_vi_meeting_times.csv`: 1,000 new SCS rows.
 - `scs_parameters.json`, `scs_theta.npy`, and `scs_complete_configuration.json`: fitted parameters and complete setup.
 - `scs_vi_history.npz`: all 4,000 fit iterates and Monte Carlo objectives.
-- `previous_meeting_times.csv`: previous data retained as comparison and baseline input.
+- `previous_meeting_times.csv`: 3,000 DCS, Euclidean and stereographic observations used as fixed inputs to the final comparison.
 - `dcs_complete_configuration.json`: retained DCS fit and coupling settings.
 
 Using Python 3.12 and the packages in `requirements.txt`, run:
@@ -87,4 +87,4 @@ python summarize_results.py
 python plot_meeting_times.py
 ```
 
-For sampling at the saved fit, omit `fit` and `tune`. The meeting runner resumes completed rows in `scs_vi_meeting_times.csv`; to recompute them, use a fresh copy without that output file. To reproduce only the plot, run the last command using the saved final data. The previous three methods are fixed inputs to this update; their reproduction code and inputs are in [../fixed_scs/](../fixed_scs/). Exact floating-point trajectories may vary across platforms.
+For sampling at the saved fit, omit `fit` and `tune`. The meeting runner resumes completed rows in `scs_vi_meeting_times.csv`; to recompute them, use a fresh copy without that output file. To reproduce only the plot, run the last command using the saved final data. DCS, Euclidean and stereographic observations are supplied in `previous_meeting_times.csv`; the shared target, DCS fit and coupling kernels are in `coupling_experiment.py`. The commands above rerun VI-SCS and merge it with those saved observations. Exact floating-point trajectories may vary across platforms.

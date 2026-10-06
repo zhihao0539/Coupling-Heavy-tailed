@@ -1,11 +1,13 @@
 # Skew-t coupling comparison
 
-Open **[experiment.py](experiment.py)**. It contains the target, SCS/DCS maps, coupled proposals, sampling loop and plotting code.
+- [algorithms.py](algorithms.py): target density, transformations and coupling functions.
+- [run_experiment.py](run_experiment.py): experiment settings, repetition loop, saving and plotting.
+- [plot_results.py](plot_results.py): figure format and plotting saved results.
 
-- Leave `RUN_SIMULATION = False` to plot the saved 1,000-repetition [results](meeting_times.csv).
-- Set it to `True` to simulate new results; adjust `N_REP` and `MAX_STEPS` at the top.
-- Run `python experiment.py`. A new simulation writes `new_meeting_times.csv` and `new_meeting_times.pdf`.
+Run `python plot_results.py` to reproduce the saved 1,000-repetition figure.
 
-`fitted_parameters.json` stores the existing VI-fitted parameters. `initial_states.npz` stores the common initial pairs. Neither file needs editing to run the experiment.
+Run `python run_experiment.py` to simulate new results and plot them. Adjust `N_REP` and the step sizes at the top of that file. New runs write `new_meeting_times.csv` and `new_meeting_times.pdf`; the saved paper results stay unchanged. Start with a small `N_REP` to try the code.
+
+`fitted_parameters.json` stores the existing VI-fitted parameters. `initial_states.npz` stores the common initial pairs. Neither file needs editing.
 
 [Saved figure](meeting_times.pdf) · [Model and settings](../README.md)

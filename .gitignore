@@ -1,13 +1,4 @@
 __pycache__/
 *.py[cod]
 .venv/
-venv/
 .DS_Store
-*.log
-*.tmp
-**/native_build/
-**/checkpoints/
-**/work/
-**/progress.json
-**/native_progress.json
-**/native_process.json

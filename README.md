@@ -1,6 +1,6 @@
 # Coupling heavy-tailed distributions
 
-Each experiment has three small Python files:
+The regression and skew-t experiments each have three small Python files:
 
 - `algorithms.py`: target density, transformations and coupling functions.
 - `run_experiment.py`: settings, simulation loop, saving and plotting.
@@ -22,6 +22,12 @@ python skew_t/run_experiment.py
 ```
 
 Each run saves `new_meeting_times.csv` and plots `new_meeting_times.pdf`. The saved paper results are preserved. Start with a small `N_REP` when trying the code; the plain Python skew-t run can be long at its one-million-iteration cutoff. Target constants such as degrees of freedom are at the top of `algorithms.py`. To change the plot style, edit `plot_results.py`.
+
+## Spherical random walk — Section 5.1
+
+[Julia code and run instructions](sphere_random_walk/README.md)
+
+Three unchanged Julia files from `Coupling-on-Sphere`: the meeting-time simulation, its required `samplers.jl`, and the plotting script in `figures/`. Their original relative paths are preserved.
 
 ## Student's t regression — Section 5.2
 

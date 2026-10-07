@@ -27,7 +27,7 @@ Each run saves `new_meeting_times.csv` and plots `new_meeting_times.pdf`. The sa
 
 [Julia code and run instructions](sphere_random_walk/README.md)
 
-Three unchanged Julia files from `Coupling-on-Sphere`: the meeting-time simulation, its required `samplers.jl`, and the plotting script in `figures/`. Their original relative paths are preserved.
+Three Julia files from `Coupling-on-Sphere`: the meeting-time simulation, its required `samplers.jl`, and `make_rw_meeting_times_fig.jl`. All three are in `sphere_random_walk/`; only the plotting script’s input paths were adjusted for this layout.
 
 ## Student's t regression — Section 5.2
 

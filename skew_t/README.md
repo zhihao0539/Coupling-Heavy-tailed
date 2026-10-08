@@ -3,6 +3,7 @@
 - [algorithms.py](algorithms.py): target density, transformations and coupling functions.
 - [run_experiment.py](run_experiment.py): experiment settings, repetition loop, saving and plotting.
 - [plot_results.py](plot_results.py): figure format and plotting saved results.
+- [vi/](vi/): variational-inference functions and fitting scripts for SCS and DCS.
 
 Run `python plot_results.py` to reproduce the saved 1,000-repetition figure.
 

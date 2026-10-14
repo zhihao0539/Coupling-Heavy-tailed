@@ -165,7 +165,7 @@ For a single chain, `sample_chain(x, log_pdf, h, n_steps, rng, ...)` returns `(c
 
 ## Tune parameters with vi.py
 
-Use `fit_vi` to choose the **map parameters** before running a coupling experiment. It supports `"stereographic"`, `"scs"`, and `"dcs"`; Euclidean coupling has no map to fit. It returns fitted values without running MCMC or saving files. The application script [skew_t/run_vi.py](../skew_t/run_vi.py) shows how the skew-t experiment calls this function for SCS and DCS; [skew_t/run_experiment.py](../skew_t/run_experiment.py) runs that fit and then passes the parameters to `run_experiment`.
+Use `fit_vi` to choose the **map parameters** before running a coupling experiment. It supports `"stereographic"`, `"scs"`, and `"dcs"`; Euclidean coupling has no map to fit. It returns fitted values without running MCMC or saving files. The application script [skew_t/run_vi.py](../skew_t/run_vi.py) shows how the skew-t experiment calls this function for SCS and DCS; it saves the fit, which [skew_t/run_experiment.py](../skew_t/run_experiment.py) loads and passes to `run_experiment`.
 
 Import it from the repository root:
 

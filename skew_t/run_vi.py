@@ -1,7 +1,7 @@
-"""Tune the skew-t SCS and DCS maps with the shared VI function.
+"""Step 1 of the skew-t experiment: tune the SCS and DCS maps by VI and save them.
 
-run_experiment.py calls fit_parameters() with these settings before coupling.
-Run this file alone to fit the maps without running the couplings.
+Run this once; run_experiment.py then loads the saved maps from
+PARAMETERS_FILE, so the couplings never refit VI.
 """
 import json
 from pathlib import Path
@@ -15,6 +15,8 @@ sys.path.insert(0, str(FOLDER.parent))
 from generic_algorithms import default_parameters
 from skew_t.target import D, NU, log_density_jax
 
+PARAMETERS_FILE = FOLDER / 'fitted_parameters.json'  # Written here, read by run_experiment.py.
+
 # VI settings shared by both map families.
 LATITUDE = 1.1                  # Fixed SCS cap latitude; sampling uses the same value.
 STEPS = 4000                    # Adam updates.
@@ -24,12 +26,12 @@ AVERAGE_LAST = 500              # Final unconstrained iterates averaged for one 
 LEARNING_RATES = (0.01, 0.002)  # Before and after CHANGE_AFTER updates.
 CHANGE_AFTER = 3000
 # Per-family seed, initial radius (zero location and offset), and JAX scan
-# chunk; DCS keeps its original single-scan layout. Remove an entry to skip it.
+# chunk; DCS keeps its original single-scan layout. Remove an entry to refit
+# only the other map; the saved fit of the removed map is kept.
 METHODS = {
     'scs': {'seed': 26093001, 'radius': 10 / 11, 'chunk_size': 250},
     'dcs': {'seed': 26092901, 'radius': np.sqrt(NU), 'chunk_size': STEPS},
 }
-OUTPUT = FOLDER / 'new_fitted_parameters.json'
 
 
 def fit_parameters():
@@ -53,14 +55,34 @@ def fit_parameters():
     return parameters, info
 
 
-def save_parameters(parameters, info, path=OUTPUT):
-    """Save fitted maps in the layout of fitted_parameters.json, plus VI details."""
-    record = {method: {name: float(value) if name == 'radius' else np.asarray(value).tolist()
-                       for name, value in values.items()}
-              for method, values in parameters.items()}
-    record['vi_info'] = info
+def save_parameters(parameters, info, path=PARAMETERS_FILE):
+    """Write the fitted maps (and their VI details) into path.
+
+    Maps already in the file but not refitted are kept unchanged.
+    """
+    record = json.loads(path.read_text()) if path.exists() else {}
+    vi_info = record.pop('vi_info', {})
+    for method, values in parameters.items():
+        record[method] = {name: float(value) if name == 'radius' else np.asarray(value).tolist()
+                          for name, value in values.items()}
+        vi_info[method] = info[method]
+    record['vi_info'] = vi_info
     path.write_text(json.dumps(record, indent=2) + '\n')
-    print(f'Saved {path.name}', flush=True)
+    print(f"Saved the {', '.join(m.upper() for m in parameters)} fit to {path.name}", flush=True)
+
+
+def load_parameters(path=PARAMETERS_FILE):
+    """Read the fitted maps saved by save_parameters, as {method: parameters}."""
+    if not path.exists():
+        raise FileNotFoundError(f'{path} not found; run skew_t/run_vi.py first.')
+    record = json.loads(path.read_text())
+    for method, info in record.get('vi_info', {}).items():
+        if method == 'scs' and not np.isclose(info.get('latitude', LATITUDE), LATITUDE):
+            raise ValueError(f"The saved SCS map was fitted with latitude {info['latitude']}, "
+                             f'but LATITUDE is {LATITUDE}; rerun skew_t/run_vi.py.')
+    return {method: {name: float(value) if name == 'radius' else np.asarray(value)
+                     for name, value in values.items()}
+            for method, values in record.items() if method != 'vi_info'}
 
 
 if __name__ == '__main__':

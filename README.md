@@ -19,7 +19,7 @@ python student_t_regression/run_experiment.py
 python skew_t/run_experiment.py
 ```
 
-The regression run saves `meeting_times.csv` and `meeting_times.pdf`. The skew-t run first fits its SCS and DCS maps by VI (settings in `skew_t/run_vi.py`, fit saved as `new_fitted_parameters.json`), then saves `new_meeting_times.csv` and `new_meeting_times.pdf`. Start with a small `N_REP` when trying the code; the plain Python skew-t run can be long at its one-million-iteration cutoff. Target constants are in each application’s `target.py`. Both figures come from `generic_algorithms/plot_results.py`; the skew-t figure uses its log-scale option.
+The regression run saves `meeting_times.csv` and `meeting_times.pdf`. The skew-t run loads its SCS and DCS maps from `skew_t/fitted_parameters.json` and saves `new_meeting_times.csv` and `new_meeting_times.pdf`; to refit those maps by VI first, run `python skew_t/run_vi.py`. Start with a small `N_REP` when trying the code; the plain Python skew-t run can be long at its one-million-iteration cutoff. Target constants are in each application’s `target.py`. Both figures come from `generic_algorithms/plot_results.py`; the skew-t figure uses its log-scale option.
 
 ## Spherical random walk — Section 5.1
 
@@ -46,7 +46,7 @@ These are the fixed-parameter results using the shared sampler. No variational i
 
 The target is the 100-dimensional Azzalini–Capitanio skew-t with ν = 2 and α = (100, −100, 0, …, 0). All four methods use the same saved Euclidean initial pairs in `initial_states.npz`. The file is needed to retain the paper comparison's exact starting pairs.
 
-The SCS and DCS transformation parameters are fitted by reverse-KL variational inference, using 4,000 Adam iterations and 2,048 samples per iteration, with the mean of the last 500 iterates selected against the last iterate on a 20,000-sample holdout. `skew_t/run_experiment.py` repeats this fit before every coupling run; `fitted_parameters.json` keeps the fit used for the saved results. Proposal sizes were tuned separately toward 40% stationary acceptance. SCS uses latitude 1.1 and h = 0.08, and rejects dark-side proposals directly. DCS uses β = 2 and normalized ball step γ/R = 0.14. Stereographic sampling uses R = 10, h = 14; Euclidean sampling uses h = 0.26.
+The SCS and DCS transformation parameters are fitted by reverse-KL variational inference, using 4,000 Adam iterations and 2,048 samples per iteration, with the mean of the last 500 iterates selected against the last iterate on a 20,000-sample holdout. `skew_t/run_vi.py` runs this fit and saves it to `fitted_parameters.json`, which `skew_t/run_experiment.py` loads; the committed file is the fit used for the saved results. Proposal sizes were tuned separately toward 40% stationary acceptance. SCS uses latitude 1.1 and h = 0.08, and rejects dark-side proposals directly. DCS uses β = 2 and normalized ball step γ/R = 0.14. Stereographic sampling uses R = 10, h = 14; Euclidean sampling uses h = 0.26.
 
 | Method | Meetings by 1,000,000 | Mean / restricted mean |
 |---|---:|---:|

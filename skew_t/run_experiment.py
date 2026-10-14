@@ -1,6 +1,7 @@
-"""Skew-t comparison: fit the SCS and DCS maps by VI, then run the couplings.
+"""Step 2 of the skew-t experiment: run the couplings with the saved VI fit.
 
-VI settings are at the top of run_vi.py; coupling settings are below.
+Run run_vi.py first; it saves the SCS and DCS maps to fitted_parameters.json,
+which this script loads. Coupling settings are below.
 """
 from pathlib import Path
 import sys
@@ -14,7 +15,7 @@ sys.path.insert(0, str(FOLDER.parent))
 from generic_algorithms import default_parameters, run_experiment
 from generic_algorithms.plot_results import plot_results
 from skew_t.target import D, log_density
-from skew_t.run_vi import LATITUDE, fit_parameters, save_parameters
+from skew_t.run_vi import LATITUDE, PARAMETERS_FILE, load_parameters
 
 # Coupling settings. Try a small N_REP and MAX_STEPS first.
 N_REP = 1000                    # Number of saved initial pairs to use (at most 1,000).
@@ -35,12 +36,14 @@ def main():
     if not 1 <= N_REP <= len(starts):
         raise ValueError(f'N_REP must be between 1 and {len(starts)} saved initial pairs.')
 
-    # 1. Tune the SCS and DCS maps by VI and keep the fit beside the results.
-    parameters, info = fit_parameters()
-    save_parameters(parameters, info, FOLDER / 'new_fitted_parameters.json')
+    # SCS and DCS maps fitted by run_vi.py; the stereographic map is fixed.
+    parameters = load_parameters(PARAMETERS_FILE)
+    missing = [method for method in ('scs', 'dcs') if method in STEP_SIZES and method not in parameters]
+    if missing:
+        raise ValueError(f'{PARAMETERS_FILE.name} has no fit for {missing}; run skew_t/run_vi.py first.')
     parameters['stereographic'] = default_parameters(D, 'stereographic', radius=STEREOGRAPHIC_RADIUS)
 
-    # 2. Couple every method from the same saved initial pairs, stopping at meeting.
+    # Couple every method from the same saved initial pairs, stopping at meeting.
     methods = {}
     for index, (method, h) in enumerate(STEP_SIZES.items()):
         methods[method] = {'h': h, 'parameters': parameters.get(method),

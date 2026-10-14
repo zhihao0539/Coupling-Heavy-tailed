@@ -3,10 +3,10 @@
 The experiment uses the shared [coupling, VI and plotting functions](../generic_algorithms/README.md). This folder supplies the target, the fixed settings and the saved inputs.
 
 - [target.py](target.py): the 100-dimensional Azzalini–Capitanio skew-t log density with ν = 2 and α = (100, −100, 0, …, 0), in NumPy for sampling and in JAX for VI.
-- [run_vi.py](run_vi.py): VI settings and `fit_parameters()`, which tunes the SCS and DCS maps with the shared `fit_vi`. Run it alone to fit without coupling.
-- [run_experiment.py](run_experiment.py): fits the maps with `run_vi.py`, then runs the four couplings with the shared runner and plots them.
+- [run_vi.py](run_vi.py): step 1. Tunes the SCS and DCS maps with the shared `fit_vi` and saves them to `fitted_parameters.json`.
+- [run_experiment.py](run_experiment.py): step 2. Loads the saved maps, runs the four couplings with the shared runner and plots them. It does not run VI.
 - `initial_states.npz`: the 1,000 common Euclidean initial pairs used by every method.
-- `fitted_parameters.json`: the SCS and DCS fit used for the saved paper results.
+- `fitted_parameters.json`: the saved SCS and DCS maps. The committed file is the fit used for the paper results.
 - `meeting_times.csv` and `meeting_times.pdf`: the saved 1,000-repetition results.
 
 ## Run
@@ -15,17 +15,14 @@ From the repository root:
 
 ```sh
 python -m pip install -r requirements.txt
-python skew_t/run_experiment.py
+python skew_t/run_vi.py           # step 1: fit and save the maps (about 2 minutes)
+python skew_t/run_experiment.py   # step 2: couple with the saved maps
 ```
 
-The run has two steps:
+1. **VI.** `run_vi.py` fits SCS and DCS by reverse KL using the settings at its top, and writes them, with their VI details under `vi_info`, to `fitted_parameters.json`. Run it only when you change those settings; the committed file already holds the paper fit, so step 2 can run straight away. Rerunning step 1 replaces the committed fit, which Git can restore. If you remove a map from `METHODS`, only the other map is refitted and the removed map's saved fit is kept.
+2. **Coupling.** `run_experiment.py` loads `fitted_parameters.json` and needs no JAX. Each method starts from the same saved initial pairs and stops at meeting or at `MAX_STEPS`. Results are saved to `new_meeting_times.csv` and `new_meeting_times.pdf`, so the saved paper results are not overwritten. It stops with a message if the file is missing, lacks SCS or DCS, or was fitted with a different SCS latitude.
 
-1. **VI.** `fit_parameters()` fits SCS and DCS by reverse KL using the settings at the top of `run_vi.py`, and saves the fit to `new_fitted_parameters.json`.
-2. **Coupling.** Each method starts from the same saved initial pairs and stops at meeting or at `MAX_STEPS`. SCS and DCS use the fit from step 1. The results are saved to `new_meeting_times.csv` and `new_meeting_times.pdf`.
-
-The saved paper results are not overwritten. Start with a small `N_REP` and `MAX_STEPS`: at the one-million-step cutoff, the Euclidean and stereographic runs take many hours in plain Python.
-
-To fit the maps without coupling, run `python skew_t/run_vi.py`. It writes the same `new_fitted_parameters.json`.
+Start with a small `N_REP` and `MAX_STEPS`: at the one-million-step cutoff, the Euclidean and stereographic runs take many hours in plain Python.
 
 To redraw the saved figure without rerunning anything:
 
@@ -60,6 +57,6 @@ VI tunes only the map parameters. Proposal steps are fixed separately; they were
 
 ## Reproducibility
 
-A new run refits VI. With the pinned library versions, the refit matched `fitted_parameters.json` to within 1e-14, taking about two minutes on a CPU; small differences are possible on other platforms or versions. With the same fit, the shared sampler gives the same meeting times and acceptance rates as the earlier skew-t code on the same streams. The saved CSV comes from an older implementation with different random streams, so individual meeting times in a new run will differ. In the saved CSV, DCS is labelled `dcs` to match the shared code; the values are unchanged.
+With the pinned library versions, rerunning `run_vi.py` reproduced the committed `fitted_parameters.json` to within 1e-14; small differences are possible on other platforms or versions. With the same fit, the shared sampler gives the same meeting times and acceptance rates as the earlier skew-t code on the same streams. The saved CSV comes from an older implementation with different random streams, so individual meeting times in a new run will differ. In the saved CSV, DCS is labelled `dcs` to match the shared code; the values are unchanged.
 
 [Model and settings](../README.md)

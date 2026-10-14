@@ -4,10 +4,10 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-RESULTS_FILE = "new_meeting_times.csv"
+RESULTS_FILE = "meeting_times.csv"
 FOLDER = Path(__file__).resolve().parent
 
-def plot_results(results, output=FOLDER / "new_meeting_times.pdf"):
+def plot_results(results, output=FOLDER / "meeting_times.pdf"):
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
     finite = results.loc[results.meeting_time >= 0, "meeting_time"].to_numpy()
     horizon = int(results.iterations.max())

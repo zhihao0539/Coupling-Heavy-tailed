@@ -19,7 +19,7 @@ python student_t_regression/run_experiment.py
 python skew_t/run_experiment.py
 ```
 
-Each run saves `new_meeting_times.csv` and plots `new_meeting_times.pdf`. The previous saved results are preserved. Start with a small `N_REP` when trying the code; the plain Python skew-t run can be long at its one-million-iteration cutoff. Target constants are in each application’s target code. To change the plot style, edit its `plot_results.py`.
+The regression run saves `meeting_times.csv` and `meeting_times.pdf`; the skew-t run saves `new_meeting_times.csv` and `new_meeting_times.pdf`. Start with a small `N_REP` when trying the code; the plain Python skew-t run can be long at its one-million-iteration cutoff. Target constants are in each application’s target code. To change the plot style, edit its `plot_results.py`.
 
 ## Spherical random walk — Section 5.1
 
@@ -29,7 +29,7 @@ Three Julia files from `Coupling-on-Sphere`: the meeting-time simulation, its re
 
 ## Student's t regression — Section 5.2
 
-[Run the experiment](student_t_regression/run_experiment.py) · [New figure](student_t_regression/new_meeting_times.pdf) · [Full regression details](student_t_regression/README.md)
+[Run the experiment](student_t_regression/run_experiment.py) · [Figure](student_t_regression/meeting_times.pdf) · [Full regression details](student_t_regression/README.md)
 
 The supplied Boston Housing data are standardized column by column, with no added intercept. The target has 13 regression coefficients and log scale, Student's t errors with ν = 4, a flat coefficient prior and prior density proportional to 1/σ² on σ². Initial states are independent N(0,100 I₁₄). Stereographic coupling uses R = √14 and h = 0.007; Euclidean coupling uses h = 0.03. Each trial runs 20,000 iterations, including after meeting for the acceptance calculation.
 
@@ -38,7 +38,7 @@ The supplied Boston Housing data are standardized column by column, with no adde
 | Stereographic | 1,000/1,000 | 2,297.837 | 23.556% |
 | Euclidean | 1,000/1,000 | 9,599.094 | 24.447% |
 
-These are the fixed-parameter rerun results using the shared sampler. No variational inference is used in this regression experiment; the [previous figure](student_t_regression/meeting_times.pdf) and CSV remain available.
+These are the fixed-parameter results using the shared sampler. No variational inference is used in this regression experiment.
 
 ## Skew-t comparison — Section 5.3
 

@@ -1,6 +1,6 @@
 # Generic coupling algorithms and variational inference
 
-These functions take the target log density and tuning parameters as inputs. They do not contain a skew-t target, a regression model, a fixed dimension, data loading, or experiment-specific file paths. The Student-t regression sampler and the skew-t VI script use these shared functions.
+These functions take the target log density and tuning parameters as inputs. They do not contain a skew-t target, a regression model, a fixed dimension, data loading, or experiment-specific file paths. The Student-t regression and skew-t experiments use these shared functions; each supplies its own `target.py` and run script.
 
 The five implementation files are:
 
@@ -114,9 +114,10 @@ From the repository root, plot a CSV produced by the shared runner:
 
 ```sh
 python generic_algorithms/plot_results.py student_t_regression/meeting_times.csv
+python generic_algorithms/plot_results.py skew_t/meeting_times.csv --log-scale
 ```
 
-The required positional argument is the input CSV path. By default the output has the same path with a `.pdf` suffix; add `--output figure.pdf` to choose another path. This redraws the figure without running any samplers. Plotting requires NumPy, pandas, and Matplotlib (included in the repository-root `requirements.txt`).
+The required positional argument is the input CSV path. By default the output has the same path with a `.pdf` suffix; add `--output figure.pdf` to choose another path. Add `--log-scale` when meeting times span several orders of magnitude, as in the skew-t experiment, and `--horizon N` to set the common iteration cutoff explicitly. This redraws the figure without running any samplers. Plotting requires NumPy, pandas, and Matplotlib (included in the repository-root `requirements.txt`).
 
 An application can call the same function directly after running an experiment:
 
@@ -125,11 +126,14 @@ import pandas as pd
 from generic_algorithms.plot_results import plot_results
 
 plot_results(pd.DataFrame(rows), "meeting_times.pdf")
+# Optional: plot_results(..., log_scale=True, horizon=n_steps)
 ```
 
-`results` is a DataFrame containing `method`, `meeting_time`, `iterations`, `acceptance_rate_chain1`, and `acceptance_rate_chain2`; `output` is the figure path. The plotter recognizes the four method names used by the shared runner and displays whichever are present. The format has two panels: a histogram among pairs that met, and the fraction of all pairs still un-met at each iteration. Nonnegative meeting times include meetings at initialization; `-1` means censored. Histogram legends show mean acceptance across both chains, excluding undefined rates from zero-update runs.
+`results` is a DataFrame containing `method`, `meeting_time`, `iterations`, `acceptance_rate_chain1`, and `acceptance_rate_chain2`; `output` is the figure path. The plotter recognizes the four method names used by the shared runner and displays whichever are present. The format has two panels: a histogram among pairs that met, and the fraction of all pairs still un-met at each iteration. Nonnegative meeting times include meetings at initialization; `-1` means censored. Histogram legends show mean acceptance across both chains, excluding undefined rates from zero-update runs; when any pair is censored they also show how many pairs met. The four methods are labelled Stereographic, Euclidean, Sub-Cauchy and DCS-Ball walk.
 
-The plotter assumes a common iteration cutoff and uses the largest recorded `iterations` as its displayed horizon. Experiments with different censoring cutoffs need a separate survival analysis. The Student-t regression run calls this function automatically and has no application-specific plotting file. Its saved figure format is retained.
+With `log_scale=True`, the histogram uses 35 logarithmic bins and the survival panel a symlog iteration axis evaluated on a geometric grid. Meetings at time 0 cannot appear on a logarithmic axis and are then left out of the histogram, though they still count in the survival curve and in the met fraction.
+
+The plotter assumes a common iteration cutoff. By default it uses the largest recorded `iterations` as its displayed horizon; pass `horizon` when that may be smaller than the cutoff, for example with `stop_at_meeting=True` when every pair met. Experiments with different censoring cutoffs need a separate survival analysis. Both application run scripts call this function and have no plotting file of their own.
 
 ## Sampling methods
 
@@ -161,7 +165,7 @@ For a single chain, `sample_chain(x, log_pdf, h, n_steps, rng, ...)` returns `(c
 
 ## Tune parameters with vi.py
 
-Use `fit_vi` to choose the **map parameters** before running a coupling experiment. It supports `"stereographic"`, `"scs"`, and `"dcs"`; Euclidean coupling has no map to fit. It returns fitted values without running MCMC or saving files. The application script [skew_t/run_vi.py](../skew_t/run_vi.py) shows how the skew-t experiment calls this function for SCS and DCS.
+Use `fit_vi` to choose the **map parameters** before running a coupling experiment. It supports `"stereographic"`, `"scs"`, and `"dcs"`; Euclidean coupling has no map to fit. It returns fitted values without running MCMC or saving files. The application script [skew_t/run_vi.py](../skew_t/run_vi.py) shows how the skew-t experiment calls this function for SCS and DCS; [skew_t/run_experiment.py](../skew_t/run_experiment.py) runs that fit and then passes the parameters to `run_experiment`.
 
 Import it from the repository root:
 
@@ -274,8 +278,8 @@ For SCS, also pass the fitted run's fixed `latitude`. Inspect loss trends and pa
 
 VI tunes the transformation geometry. It does not tune proposal `h`, minimize meeting time, or alter the target used in the Metropolis correction. The chosen reference family must have finite reverse KL to the target. Differentiability alone is insufficient: a heavy-tailed variational family can have infinite reverse KL to a Gaussian even when a finite MC batch returns a finite value. For constrained targets, first choose appropriate unconstrained coordinates and include their Jacobian in `log_pdf`.
 
-For the skew-t application, [run_vi.py](../skew_t/run_vi.py) supplies the target and experiment-specific initial values: dimension `100`; SCS latitude `1.1`, initial radius `10/11`, seed `26093001`; DCS initial radius `sqrt(2)`, seed `26092901`. Initial shifts and offsets are zero. It uses the optimizer defaults above, with `chunk_size=4000` for the original DCS scan layout. Small floating-point differences are possible across execution layouts and library versions; see the application README for its output files.
+For the skew-t application, [run_vi.py](../skew_t/run_vi.py) takes the JAX target from [target.py](../skew_t/target.py) and supplies the experiment-specific initial values: dimension `100`; SCS latitude `1.1`, initial radius `10/11`, seed `26093001`; DCS initial radius `sqrt(2)`, seed `26092901`. Initial shifts and offsets are zero. It uses the optimizer defaults above, with `chunk_size=4000` for the original DCS scan layout. Small floating-point differences are possible across execution layouts and library versions; see the application README for its output files.
 
 ## Checks
 
-The tests cover maps and inverses at several dimensions, Jacobians against numerical derivatives, both proposal marginals against independent draws, Gaussian maximal meeting probability, domain rejection, exact meeting and sticking, known Student-t reference families, VI gradients, and fitting/reusing the returned parameters across different dimensions. Local compatibility checks also compare the maps, proposal formulas, transformed log densities, and a 50-iteration VI replay with the existing experiment implementations.
+The tests cover maps and inverses at several dimensions, Jacobians against numerical derivatives, both proposal marginals against independent draws, Gaussian maximal meeting probability, domain rejection, exact meeting and sticking, known Student-t reference families, VI gradients, and fitting/reusing the returned parameters across different dimensions.

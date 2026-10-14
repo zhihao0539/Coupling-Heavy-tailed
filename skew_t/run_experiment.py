@@ -1,46 +1,56 @@
-"""Set the parameters below, then run to simulate and plot."""
+"""Skew-t comparison: fit the SCS and DCS maps by VI, then run the couplings.
+
+VI settings are at the top of run_vi.py; coupling settings are below.
+"""
 from pathlib import Path
+import sys
+
 import numpy as np
 import pandas as pd
-from algorithms import (load_parameters, to_sphere, scs_inverse,
-                        dcs_inverse, coupled_sampler)
-from plot_results import plot_results
 
-# Experiment settings. Try a small N_REP for a quick run.
-N_REP = 1000
-MAX_STEPS = 1000000
-SEED = 42
-STEPS = {"stereographic": 14.0, "euclidean": 0.26, "scs": 0.08, "dcs_bw": 0.14}
 FOLDER = Path(__file__).resolve().parent
+sys.path.insert(0, str(FOLDER.parent))
 
-def run_experiment(n_rep=N_REP, max_steps=MAX_STEPS):
-    parameters = load_parameters()
-    starts = np.load(FOLDER / "initial_states.npz")["initial_states"]
-    if not 1 <= n_rep <= len(starts):
-        raise ValueError("Choose between 1 and 1,000 saved initial pairs.")
-    rows = []
-    for rep, (x, y) in enumerate(starts[:n_rep]):
-        for index, method in enumerate(STEPS):
-            if method == "scs":
-                a, b = scs_inverse(x, parameters["scs"]), scs_inverse(y, parameters["scs"])
-            elif method == "dcs_bw":
-                a, b = dcs_inverse(x, parameters["dcs"]), dcs_inverse(y, parameters["dcs"])
-            elif method == "stereographic":
-                a, b = to_sphere(x), to_sphere(y)
-            else:
-                a, b = x, y
-            rng = np.random.default_rng(SEED + rep + (index + 1) * 100000)
-            tau, iterations, acc1, acc2 = coupled_sampler(a, b, method, parameters, max_steps, rng, STEPS[method])
-            rows.append(dict(method=method, replicate=rep, met=np.isfinite(tau),
-                             meeting_time=tau if np.isfinite(tau) else -1,
-                             iterations=iterations, acceptance_rate_chain1=acc1,
-                             acceptance_rate_chain2=acc2, cutoff=max_steps))
-        if (rep + 1) % 10 == 0:
-            print(f"Finished {rep + 1}/{n_rep} repetitions", flush=True)
-    return pd.DataFrame(rows)
+from generic_algorithms import default_parameters, run_experiment
+from generic_algorithms.plot_results import plot_results
+from skew_t.target import D, log_density
+from skew_t.run_vi import LATITUDE, fit_parameters, save_parameters
+
+# Coupling settings. Try a small N_REP and MAX_STEPS first.
+N_REP = 1000                    # Number of saved initial pairs to use (at most 1,000).
+MAX_STEPS = 1_000_000           # Iteration cutoff; pairs unmet by then are censored.
+SEED = 42
+STEREOGRAPHIC_RADIUS = 10       # Fixed stereographic map: zero location, this radius.
+STEP_SIZES = {                  # Proposal h for each method, in this order.
+    'stereographic': 14.0,      # Tangent-Gaussian scale on the sphere.
+    'euclidean': 0.26,          # Gaussian random-walk standard deviation.
+    'scs': 0.08,                # Tangent-Gaussian scale on the sphere.
+    'dcs': 0.14,                # Ball-walk radius in unit-ball coordinates (gamma/R).
+}
+OUTPUT = FOLDER / 'new_meeting_times.csv'
 
 
-if __name__ == "__main__":
-    results = run_experiment()
-    results.to_csv(FOLDER / "new_meeting_times.csv", index=False)
-    plot_results(results, FOLDER / "new_meeting_times.pdf")
+def main():
+    starts = np.load(FOLDER / 'initial_states.npz')['initial_states']
+    if not 1 <= N_REP <= len(starts):
+        raise ValueError(f'N_REP must be between 1 and {len(starts)} saved initial pairs.')
+
+    # 1. Tune the SCS and DCS maps by VI and keep the fit beside the results.
+    parameters, info = fit_parameters()
+    save_parameters(parameters, info, FOLDER / 'new_fitted_parameters.json')
+    parameters['stereographic'] = default_parameters(D, 'stereographic', radius=STEREOGRAPHIC_RADIUS)
+
+    # 2. Couple every method from the same saved initial pairs, stopping at meeting.
+    methods = {}
+    for index, (method, h) in enumerate(STEP_SIZES.items()):
+        methods[method] = {'h': h, 'parameters': parameters.get(method),
+                           'seed_offset': 100_000 * (index + 1)}  # Previous random streams.
+        if method == 'scs':
+            methods[method]['latitude'] = LATITUDE
+    rows = run_experiment(log_density, starts[:N_REP], methods, MAX_STEPS, seed=SEED,
+                          stop_at_meeting=True, output_csv=OUTPUT, progress_every=10)
+    plot_results(pd.DataFrame(rows), OUTPUT.with_suffix('.pdf'), log_scale=True, horizon=MAX_STEPS)
+
+
+if __name__ == '__main__':
+    main()

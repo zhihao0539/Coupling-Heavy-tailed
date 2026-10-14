@@ -2,12 +2,13 @@
 
 These functions take the target log density and tuning parameters as inputs. They do not contain a skew-t target, a regression model, a fixed dimension, data loading, or experiment-specific file paths. The Student-t regression sampler and the skew-t VI script use these shared functions.
 
-The four implementation files are:
+The five implementation files are:
 
 - `algorithms.py`: maximal-reflection proposal couplings, one shared Metropolis loop, and a single-chain wrapper.
 - `transformations.py`: stereographic, sub-Cauchy (SCS), and DCS maps, inverses, and log Jacobians. Sampling and VI use these same formulas.
 - `vi.py`: reference sampling, reverse-KL objective, Adam, and one `fit_vi` function for all supported transformation families.
 - `run_experiment.py`: a sequential loop over fixed methods and initial pairs, with optional CSV output.
+- `plot_results.py`: shared meeting-time histogram and survival plotting, with a CSV command-line entry point.
 
 `example.py` is a small application. `test_algorithms.py` contains numerical checks. `__init__.py` makes the folder importable; it does not load JAX unless VI is imported.
 
@@ -21,7 +22,7 @@ python -m generic_algorithms.example
 python -m unittest generic_algorithms.test_algorithms -v
 ```
 
-Sampling alone needs NumPy. VI additionally needs JAX and SciPy. JAX is configured for 64-bit arithmetic when `vi.py` is imported.
+Sampling alone needs NumPy. VI additionally needs JAX and SciPy. Plotting additionally needs pandas and Matplotlib, available with `python -m pip install pandas matplotlib`. JAX is configured for 64-bit arithmetic when `vi.py` is imported.
 
 ## Run a fixed-parameter experiment
 
@@ -105,7 +106,30 @@ The function returns a list of dictionaries, one for every method and initial pa
 | `iterations` | Updates actually performed: normally `n_steps`, or fewer with `stop_at_meeting=True`. |
 | `acceptance_rate_chain1`, `acceptance_rate_chain2` | Accepted proposals divided by `iterations` for each chain. If `stop_at_meeting=True` and the initial states coincide, both rates are `NaN` because there were no updates. |
 
-The runner leaves the two chains together after meeting. With its default `stop_at_meeting=False`, both acceptance rates use the full fixed run. Setting `stop_at_meeting=True` changes their denominator to the number of updates performed through meeting. The runner returns no full chains or plot; use `coupled_sampler(..., store_chains=True)` for trajectories and an application plot script for figures.
+The runner leaves the two chains together after meeting. With its default `stop_at_meeting=False`, both acceptance rates use the full fixed run. Setting `stop_at_meeting=True` changes their denominator to the number of updates performed through meeting. The runner returns no full chains or plot; use `coupled_sampler(..., store_chains=True)` for trajectories and the shared `plot_results` function for figures.
+
+## Plot saved results
+
+From the repository root, plot a CSV produced by the shared runner:
+
+```sh
+python generic_algorithms/plot_results.py student_t_regression/meeting_times.csv
+```
+
+The required positional argument is the input CSV path. By default the output has the same path with a `.pdf` suffix; add `--output figure.pdf` to choose another path. This redraws the figure without running any samplers. Plotting requires NumPy, pandas, and Matplotlib (included in the repository-root `requirements.txt`).
+
+An application can call the same function directly after running an experiment:
+
+```python
+import pandas as pd
+from generic_algorithms.plot_results import plot_results
+
+plot_results(pd.DataFrame(rows), "meeting_times.pdf")
+```
+
+`results` is a DataFrame containing `method`, `meeting_time`, `iterations`, `acceptance_rate_chain1`, and `acceptance_rate_chain2`; `output` is the figure path. The plotter recognizes the four method names used by the shared runner and displays whichever are present. The format has two panels: a histogram among pairs that met, and the fraction of all pairs still un-met at each iteration. Nonnegative meeting times include meetings at initialization; `-1` means censored. Histogram legends show mean acceptance across both chains, excluding undefined rates from zero-update runs.
+
+The plotter assumes a common iteration cutoff and uses the largest recorded `iterations` as its displayed horizon. Experiments with different censoring cutoffs need a separate survival analysis. The Student-t regression run calls this function automatically and has no application-specific plotting file. Its saved figure format is retained.
 
 ## Sampling methods
 

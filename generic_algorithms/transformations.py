@@ -1,7 +1,7 @@
 """Target-independent maps. Pass xp=jax.numpy to use the same formulas in VI."""
 import numpy as np
 
-METHODS = ('euclidean', 'sphere', 'stereographic', 'scs', 'dcs')
+METHODS = ('euclidean', 'stereographic', 'scs', 'dcs')
 
 
 def default_parameters(dimension, method, radius=1.0):
@@ -19,7 +19,7 @@ def validate_parameters(parameters, dimension, method, latitude=1.1):
     """Validate once, outside the sampling/optimization loops."""
     if method not in METHODS:
         raise ValueError(f'Unknown method: {method}')
-    if method in ('euclidean', 'sphere'):
+    if method == 'euclidean':
         return
     mu = np.asarray(parameters['mu'])
     if mu.shape != (dimension,) or not np.isfinite(mu).all():
@@ -108,7 +108,7 @@ def map_to_euclidean(z, method, parameters, latitude=1.1, xp=np):
         return scs_map(z, parameters, latitude, xp)
     if method == 'dcs':
         return dcs_map(z, parameters, xp)
-    if method in ('euclidean', 'sphere'):
+    if method == 'euclidean':
         return z, xp.zeros(z.shape[:-1])
     raise ValueError(f'Unknown method: {method}')
 
@@ -122,7 +122,7 @@ def to_native(x, method, parameters=None, latitude=1.1):
         return scs_inverse(x, parameters, latitude)
     if method == 'dcs':
         return dcs_inverse(x, parameters)
-    if method in ('euclidean', 'sphere'):
+    if method == 'euclidean':
         return x.copy()
     raise ValueError(f'Unknown method: {method}')
 

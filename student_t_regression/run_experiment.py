@@ -25,7 +25,7 @@ if __name__ == '__main__':
         'stereographic': {'h': .007, 'parameters': default_parameters(d, 'stereographic', radius=np.sqrt(d)), 'seed_offset': 100000},
         'euclidean': {'h': .03, 'seed_offset': 200000},
     }
-    output = FOLDER / 'new_meeting_times.csv'
+    output = FOLDER / 'meeting_times.csv'
     rows = run_experiment(lambda theta: log_density(theta, X, y), initial_pairs,
                           methods, N_STEPS, seed=SEED, output_csv=output)
     plot_results(pd.DataFrame(rows), output.with_suffix('.pdf'))

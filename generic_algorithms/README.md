@@ -1,12 +1,13 @@
 # Generic coupling algorithms and variational inference
 
-These functions take the target log density and tuning parameters as inputs. They do not contain a skew-t target, a regression model, a fixed dimension, data loading, or experiment-specific file paths. The existing experiment folders are unchanged and still run their original code. They can be switched to these shared functions in a later change.
+These functions take the target log density and tuning parameters as inputs. They do not contain a skew-t target, a regression model, a fixed dimension, data loading, or experiment-specific file paths. The Student-t regression experiment uses these shared functions; the skew-t folder still runs its original code.
 
-The three implementation files are:
+The four implementation files are:
 
 - `algorithms.py`: maximal-reflection proposal couplings, one shared Metropolis loop, and a single-chain wrapper.
 - `transformations.py`: stereographic, sub-Cauchy (SCS), and DCS maps, inverses, and log Jacobians. Sampling and VI use these same formulas.
 - `vi.py`: reference sampling, reverse-KL objective, Adam, and one `fit_vi` function for all supported transformation families.
+- `run_experiment.py`: a sequential loop over fixed methods and initial pairs, with optional CSV output.
 
 `example.py` is a small application. `test_algorithms.py` contains numerical checks. `__init__.py` makes the folder importable; it does not load JAX unless VI is imported.
 
@@ -58,12 +59,11 @@ This is a usage example, not a recommended universal step size. The shorter `exa
 | `method` | Application state and target measure | Native proposal |
 |---|---|---|
 | `euclidean` | Vector in R^d; Lebesgue density | Gaussian random walk, standard deviation `h` per coordinate |
-| `sphere` | Unit vector in R^(d+1); density relative to sphere area | Projected Gaussian tangent step of size `h`, then normalization |
 | `stereographic` | Vector in R^d; Lebesgue density | Same sphere proposal through a stereographic map |
 | `scs` | Vector in R^d; Lebesgue density | Same sphere proposal; reject every dark-side proposal |
 | `dcs` | Vector in R^d; Lebesgue density | Uniform-ball random walk of radius `h` in the unit-ball coordinates |
 
-The `sphere` method also handles a plain spherical random walk by passing `log_pdf=lambda z: 0.0`. All methods use maximal-reflection proposal coupling and a shared Metropolis uniform. `sphere_log_proposal` omits only its parameter-independent normalizing constant. The shared Metropolis loop applies to these symmetric proposal kernels; it is not an implementation for arbitrary asymmetric proposals.
+Stereographic and SCS use the spherical proposal internally after mapping a Euclidean target to the sphere. `sphere` is not a separate public method. All methods use maximal-reflection proposal coupling and a shared Metropolis uniform. `sphere_log_proposal` omits only its parameter-independent normalizing constant. The shared Metropolis loop applies to these symmetric proposal kernels; it is not an implementation for arbitrary asymmetric proposals.
 
 The DCS family currently implements beta=2, as in the existing experiment. The target and dimension are generic; beta is not a fitted parameter. Its `h` is the normalized ball radius (the experiment's gamma/R), not a Euclidean-coordinate step size. SCS latitude is supplied separately, defaults to 1.1, and stays fixed during VI. There is no stepping-out function. Rejection sampling inside VI only generates uniform reference-cap points.
 
@@ -90,6 +90,22 @@ The result contains `meeting_time`, `iterations`, `acceptance_rate_chain1`, `acc
 - These are simultaneous, zero-lag couplings. They do not on their own construct a lagged unbiased estimator or a stationarity bound.
 
 For a single chain, `sample_chain(x, log_pdf, h, n_steps, rng, ...)` returns `(chain, acceptance_rate)` using the same transition implementation. It includes the initial state. Saving full chains is optional for coupled runs because it can use substantial memory.
+
+For repeated fixed-parameter couplings, use `run_experiment`. It does not run VI or require workers:
+
+```python
+from generic_algorithms import run_experiment, default_parameters
+
+settings = {
+    'stereographic': {'h': .007, 'parameters': default_parameters(d, 'stereographic', radius=R),
+                     'seed_offset': 100000},
+    'euclidean': {'h': .03, 'seed_offset': 200000},
+}
+rows = run_experiment(log_pdf, initial_pairs, settings, n_steps=20000,
+                      output_csv='meeting_times.csv')
+```
+
+`initial_pairs` has shape `(repetitions, 2, d)`. The runner saves one row per method and pair, including meeting time and both acceptance rates. With `seed_offset`, repetition `rep` uses `seed + seed_offset + rep`, matching the previous regression experiment's streams. Without an offset, independent streams are reproducible for a given seed and method order. Set `stop_at_meeting=True` to end each pair at meeting; the default runs all updates so acceptance rates share the same denominator. Set `progress_every=None` to suppress progress messages.
 
 ## What the VI function does
 

@@ -1,6 +1,6 @@
 # Generic coupling algorithms and variational inference
 
-These functions take the target log density and tuning parameters as inputs. They do not contain a skew-t target, a regression model, a fixed dimension, data loading, or experiment-specific file paths. The Student-t regression experiment uses these shared functions; the skew-t folder still runs its original code.
+These functions take the target log density and tuning parameters as inputs. They do not contain a skew-t target, a regression model, a fixed dimension, data loading, or experiment-specific file paths. The Student-t regression sampler and the skew-t VI script use these shared functions.
 
 The four implementation files are:
 
@@ -107,37 +107,6 @@ The function returns a list of dictionaries, one for every method and initial pa
 
 The runner leaves the two chains together after meeting. With its default `stop_at_meeting=False`, both acceptance rates use the full fixed run. Setting `stop_at_meeting=True` changes their denominator to the number of updates performed through meeting. The runner returns no full chains or plot; use `coupled_sampler(..., store_chains=True)` for trajectories and an application plot script for figures.
 
-## Define a target, fit the map, run one coupling with VI
-
-The log density takes one vector and returns one scalar. Its normalizing constant is unnecessary. Data and model settings can be captured in a closure. For VI the function must support JAX differentiation; write it with `jax.numpy` and JAX-compatible special functions.
-
-```python
-import numpy as np
-import jax.numpy as jnp
-from generic_algorithms import coupled_sampler, default_parameters
-from generic_algorithms.vi import fit_vi
-
-d, df = 3, 2.0
-
-def log_pdf(x):
-    return -(d + df) / 2 * jnp.log1p(jnp.sum(x * x) / df)
-
-parameters, info, history = fit_vi(
-    log_pdf, dimension=d, method="dcs",
-    initial_parameters=default_parameters(d, "dcs", radius=np.sqrt(df)),
-    seed=42,
-)
-
-result = coupled_sampler(
-    x=np.zeros(d), y=np.ones(d), log_pdf=log_pdf,
-    h=0.2, n_steps=5000, rng=np.random.default_rng(100),
-    method="dcs", parameters=parameters,
-)
-print(result["meeting_time"])
-```
-
-This is a usage example, not a recommended universal step size. The shorter `example.py` runs 500 VI iterations. A NumPy evaluator for the same log density is faster in long Python sampling loops; JAX is only required for the evaluator supplied to VI.
-
 ## Sampling methods
 
 | `method` | Application state and target measure | Native proposal |
@@ -166,32 +135,122 @@ The result contains `meeting_time`, `iterations`, `acceptance_rate_chain1`, `acc
 
 For a single chain, `sample_chain(x, log_pdf, h, n_steps, rng, ...)` returns `(chain, acceptance_rate)` using the same transition implementation. It includes the initial state. Saving full chains is optional for coupled runs because it can use substantial memory.
 
-## What the VI function does
+## Tune parameters with vi.py
 
-`fit_vi` supports `scs`, `dcs`, and `stereographic`. It minimizes
+Use `fit_vi` to choose the **map parameters** before running a coupling experiment. It supports `"stereographic"`, `"scs"`, and `"dcs"`; Euclidean coupling has no map to fit. It returns fitted values without running MCMC or saving files. The application script [skew_t/run_vi.py](../skew_t/run_vi.py) shows how the skew-t experiment calls this function for SCS and DCS.
 
-```text
-E[-log_pdf(T_theta(Z)) - log |Jacobian T_theta(Z)|],
+Import it from the repository root:
+
+```python
+from generic_algorithms.vi import fit_vi
 ```
 
-which is reverse KL up to constants. Reference `Z` is uniform on the bright cap, unit ball, or whole sphere, respectively. All transformations are defined once in `transformations.py`; VI calls them with the JAX backend.
+The target must accept **one length-`d` vector** in the original Euclidean coordinates and return **one scalar log density**. Its normalizing constant can be omitted. Use `jax.numpy` and JAX-compatible special functions, because JAX differentiates through this evaluator. Do not convert its argument or return value to a NumPy array or Python `float` inside the function. Data and fixed model settings can be captured in a closure.
 
-Each update uses fresh reference samples and an automatic gradient. `adam_update` contains the Adam formula explicitly. Positive radii use an exponential parameterization; constrained offsets use a radial tanh parameterization. The defaults retain the earlier tuning schedule:
+For example, this fits the DCS map to a three-dimensional Student-t target with two degrees of freedom:
 
-| Setting | Default |
-|---|---:|
-| Iterations | 4,000 |
-| Samples per iteration | 2,048 |
-| Learning rate | 0.01, then 0.002 after 3,000 updates |
-| Adam beta1, beta2, epsilon | 0.9, 0.999, 1e-8 |
-| Parameter averaging | Last 500 unconstrained vectors |
-| Independent selection holdout | 20,000 points, seed = training seed + 500 |
+```python
+import numpy as np
+import jax.numpy as jnp
+from generic_algorithms import default_parameters
+from generic_algorithms.vi import fit_vi
 
-The holdout selects between the final iterate and the average of the last 500 unconstrained vectors. Returns are `(parameters, info, history)`: physical parameters for sampling, settings and holdout losses, and per-update `loss` and unconstrained `theta`. No files are saved automatically. Convergence plots can use `history['loss']`; parameter histories can be decoded with `unpack_parameters`.
+d, df = 3, 2.0
 
-VI tunes the transformation geometry. It does not tune proposal `h`, minimize meeting time, or alter the target used in the Metropolis correction. The chosen reference family must have finite reverse KL to the target. Differentiability alone is insufficient: for example, a heavy-tailed variational family can have infinite reverse KL to a Gaussian even when a finite Monte Carlo batch returns a finite value. For constrained targets, first choose appropriate unconstrained coordinates and include their Jacobian in `log_pdf`.
+def log_pdf_jax(x):
+    return -(d + df) / 2 * jnp.log1p(jnp.sum(x * x) / df)
 
-To reproduce the existing skew-t tuning, the application supplies its own log density and these settings: d=100; SCS latitude=1.1, initial radius=10/11, seed=26093001; DCS initial radius=sqrt(2), seed=26092901. Initial shifts and offsets are zero. The optimizer defaults above match the fitting settings; `chunk_size=4000` matches the original DCS scan layout. Small floating-point differences are possible across execution layouts and library versions. The new folder does not load or overwrite the paper's fitted parameters.
+parameters, info, history = fit_vi(
+    log_pdf_jax,
+    dimension=d,
+    method="dcs",
+    initial_parameters=default_parameters(d, "dcs", radius=np.sqrt(df)),
+    seed=42,
+)
+print(parameters)
+print(info["chosen_candidate"])
+```
+
+The full interface is:
+
+```text
+fit_vi(log_pdf, dimension, method='scs', *, initial_parameters=None,
+       latitude=1.1, seed=0, steps=4000, batch_size=2048,
+       learning_rates=(0.01, 0.002), change_after=3000,
+       average_last=500, holdout_size=20000, chunk_size=250)
+```
+
+| Argument | Meaning | Default |
+|---|---|---|
+| `log_pdf` | Differentiable scalar JAX log density described above. | Required |
+| `dimension` | Positive integer dimension of the target vector. | Required |
+| `method` | Map family: `"stereographic"`, `"scs"`, or `"dcs"`. | `"scs"` |
+| `initial_parameters` | Starting map dictionary. Use `default_parameters(dimension, method, radius=R)` for zero shift and offsets with radius `R`. Supplied vectors must have length `dimension` and satisfy the constraints below. | `None`: zero shift/offsets, radius `1` |
+| `latitude` | Fixed SCS cap latitude, strictly between `0` and `2`. Use the same value later in sampling. It is not optimized and has no effect on the other families. | `1.1` |
+| `seed` | Random seed for training samples. The selection holdout uses `seed + 500`. | `0` |
+| `steps` | Positive integer number of Adam updates. | `4000` |
+| `batch_size` | Positive integer number of fresh reference samples in each Monte Carlo gradient. Larger batches reduce sampling noise but require more computation and memory. | `2048` |
+| `learning_rates` | Two positive learning rates: the first before the change, the second afterwards. | `(0.01, 0.002)` |
+| `change_after` | Number of updates using the first rate. With `0`, every update uses the second; with a value at least `steps`, every update uses the first. | `3000` |
+| `average_last` | Number of final **unconstrained parameter vectors** to average for one candidate solution; capped at `steps`. This does not average sampled chains. | `500` |
+| `holdout_size` | Positive integer number of independent reference points used to compare the final iterate and averaged candidate. | `20000` |
+| `chunk_size` | Positive integer number of updates processed in each compiled JAX scan. This controls execution grouping, not the total number of updates or the batch size. | `250` |
+
+`fit_vi` returns three objects:
+
+- **`parameters`**: the selected physical map parameters, ready for sampling. Every family has a length-`d` NumPy vector `mu` and a positive Python scalar `radius`. SCS also has `horizontal_observer`, with norm below `sqrt(latitude * (2 - latitude))`; DCS has `delta`, with norm below `1`. `latitude` is passed separately. The DCS implementation fixes `beta=2`.
+- **`info`**: the method, dimension, training settings, holdout seed, `initial_holdout_loss`, `candidate_holdout_losses`, and `chosen_candidate`. Candidate losses are ordered as `[last_iterate, last_window_average]`; the smaller one determines the returned parameters. SCS also records `latitude`, and DCS records `beta`.
+- **`history`**: `loss`, an array of length `steps`, and `theta`, an array of shape `(steps, p)`, where `p=d+1` for stereographic or `p=2*d+1` for SCS/DCS. `theta` stores unconstrained variables: shift, log radius, and, where needed, the vector used to parameterize the constrained offset.
+
+To reuse a fitted map, place `parameters` in the chosen method's settings. The following continues the example above using a NumPy evaluator of the same target for the sampling loop:
+
+```python
+from generic_algorithms import run_experiment
+
+def log_pdf_numpy(x):
+    return -(d + df) / 2 * np.log1p(np.sum(x * x) / df)
+
+methods = {"dcs": {"parameters": parameters, "h": 0.2}}
+initial_pairs = np.random.default_rng(7).normal(size=(3, 2, d))
+rows = run_experiment(
+    log_pdf_numpy, initial_pairs, methods, n_steps=100,
+    seed=42, progress_every=None,
+)
+```
+
+Here `h=0.2` only illustrates the interface: choose the proposal step size separately for your target. For SCS, include `"latitude": latitude` in the method settings, using the value supplied to `fit_vi`. The [runner guide](#run-a-fixed-parameter-experiment) explains the remaining experiment settings and CSV output.
+
+### Objective, Monte Carlo estimates, and Adam
+
+Let `T_theta` map a reference point `Z` into the target's Euclidean coordinates. The reference is uniform on the whole sphere for stereographic, the bright cap for SCS, or the unit ball for DCS. The induced distribution of `T_theta(Z)` is the variational distribution. The fitted objective is
+
+```text
+E[-log_pdf(T_theta(Z)) - log |Jacobian T_theta(Z)|].
+```
+
+This equals reverse KL, `KL(q_theta || target)`, up to constants independent of the fitted parameters. Each update estimates the expectation with a **Monte Carlo (MC) average** over `batch_size` fresh reference points. JAX computes its gradient, and `adam_update` uses moving averages of the gradient and its square to update `theta`. Its fixed constants are `beta1=0.9`, `beta2=0.999`, and `epsilon=1e-8`. An exponential parameterization keeps the radius positive, and a radial `tanh` parameterization keeps offsets inside their allowed domains.
+
+After training, the independent holdout compares the final iterate with the average of the last `min(average_last, steps)` unconstrained vectors. Averaging happens **before** converting the log radius and offset variables into physical parameters. The selected candidate is then converted into the returned `parameters` dictionary. The same transformation formulas in `transformations.py` are used for VI and sampling.
+
+### Reading the convergence history
+
+`history["loss"][k]` is the noisy training objective evaluated **before update `k+1`**, whereas `history["theta"][k]` is the parameter vector **after that update**. Thus they are useful as optimization traces, but they are not an objective/parameter pair evaluated at the same iterate. Loss values need not be nonnegative because parameter-independent constants are omitted, and the training loss need not decrease at every update.
+
+For a parameter trace, convert an unconstrained row with:
+
+```python
+from generic_algorithms.vi import unpack_parameters
+
+parameters_at_update_100 = unpack_parameters(
+    jnp.asarray(history["theta"][99]), d, "dcs",
+)
+```
+
+For SCS, also pass the fitted run's fixed `latitude`. Inspect loss trends and parameter stability; compare the candidate holdout losses with `info["initial_holdout_loss"]`. Holdout selection chooses between two candidates and does not by itself prove convergence to an optimum. For objective values evaluated at selected saved iterates, `sample_reference` and `reverse_kl` can evaluate them on a separate fixed reference sample.
+
+VI tunes the transformation geometry. It does not tune proposal `h`, minimize meeting time, or alter the target used in the Metropolis correction. The chosen reference family must have finite reverse KL to the target. Differentiability alone is insufficient: a heavy-tailed variational family can have infinite reverse KL to a Gaussian even when a finite MC batch returns a finite value. For constrained targets, first choose appropriate unconstrained coordinates and include their Jacobian in `log_pdf`.
+
+For the skew-t application, [run_vi.py](../skew_t/run_vi.py) supplies the target and experiment-specific initial values: dimension `100`; SCS latitude `1.1`, initial radius `10/11`, seed `26093001`; DCS initial radius `sqrt(2)`, seed `26092901`. Initial shifts and offsets are zero. It uses the optimizer defaults above, with `chunk_size=4000` for the original DCS scan layout. Small floating-point differences are possible across execution layouts and library versions; see the application README for its output files.
 
 ## Checks
 

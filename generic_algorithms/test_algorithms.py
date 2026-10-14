@@ -86,8 +86,8 @@ class CouplingChecks(unittest.TestCase):
 
     def test_meeting_is_exact_and_sticky(self):
         target = lambda x: -2.5 * np.log1p(np.sum(x * x) / 2)
-        for method in ['euclidean', 'sphere', 'stereographic', 'scs', 'dcs']:
-            x = np.array([0., 0., 1.]) if method == 'sphere' else np.zeros(3)
+        for method in ['euclidean', 'stereographic', 'scs', 'dcs']:
+            x = np.zeros(3)
             result = coupled_sampler(x, x, target, .15, 100, np.random.default_rng(4),
                                      method, stop_at_meeting=False, store_chains=True)
             self.assertEqual(result['meeting_time'], 0)

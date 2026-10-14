@@ -54,9 +54,8 @@ def coupled_sampler(x, y, log_pdf, h, n_steps, rng, method='euclidean',
                     store_chains=False):
     """Run two coupled chains, supplying only a target and numerical settings.
 
-    x and y are Euclidean initial states except for method='sphere', where both
-    are unit vectors and log_pdf is a density relative to sphere area. The
-    optional chains include the initial states. Meeting means exact equality;
+    x and y are Euclidean initial states. The optional chains include the
+    initial states. Meeting means exact equality;
     identical initial states have meeting time 0. Unmet pairs return np.inf.
     Acceptance is measured over the updates actually performed.
     """
@@ -67,8 +66,6 @@ def coupled_sampler(x, y, log_pdf, h, n_steps, rng, method='euclidean',
     x, y = np.asarray(x, dtype=float), np.asarray(y, dtype=float)
     if x.ndim != 1 or x.size == 0 or y.shape != x.shape or not np.isfinite([x, y]).all():
         raise ValueError('Initial states must be finite vectors of equal positive dimension.')
-    if method == 'sphere' and (len(x) < 2 or not np.allclose([x @ x, y @ y], 1., rtol=0, atol=1e-12)):
-        raise ValueError('Sphere states must be unit vectors of length at least 2.')
     if parameters is None:
         parameters = default_parameters(len(x), method)
     else:
@@ -79,7 +76,7 @@ def coupled_sampler(x, y, log_pdf, h, n_steps, rng, method='euclidean',
     log_a, log_b = target(a), target(b)
     if not np.isfinite([log_a, log_b]).all():
         raise ValueError('Both initial states must have finite transformed log density.')
-    proposal = 'sphere' if method in ('sphere', 'stereographic', 'scs') else 'ball' if method == 'dcs' else 'gaussian'
+    proposal = 'sphere' if method in ('stereographic', 'scs') else 'ball' if method == 'dcs' else 'gaussian'
     accepted_a = accepted_b = iterations = 0
     meeting_time = 0 if np.array_equal(a, b) else np.inf
     chain_a, chain_b = ([x.copy()], [y.copy()]) if store_chains else (None, None)

@@ -1,14 +1,14 @@
 # Coupling heavy-tailed distributions
 
-The regression experiment uses shared coupling functions in [`generic_algorithms/`](generic_algorithms/README.md). Each application keeps its fixed settings, run script, and plotting script in its own folder. The skew-t folder retains its existing `algorithms.py`; the regression target is in [`student_t_regression/target.py`](student_t_regression/target.py).
+The regression experiment uses shared coupling functions in [`generic_algorithms/`](generic_algorithms/README.md). Each application keeps its fixed settings and run script in its own folder. Regression uses the shared plotter in `generic_algorithms/plot_results.py`. The skew-t folder retains its existing `algorithms.py`; the regression target is in [`student_t_regression/target.py`](student_t_regression/target.py).
 
-The application scripts are `run_experiment.py` for simulation and `plot_results.py` for plotting saved results.
+Use each application’s `run_experiment.py` for simulation. Plot regression results with the generic script; skew-t keeps its existing `plot_results.py`.
 
 Install the four libraries and reproduce the saved 1,000-repetition figures:
 
 ```sh
 python -m pip install -r requirements.txt
-python student_t_regression/plot_results.py
+python generic_algorithms/plot_results.py student_t_regression/meeting_times.csv
 python skew_t/plot_results.py
 ```
 
@@ -19,7 +19,7 @@ python student_t_regression/run_experiment.py
 python skew_t/run_experiment.py
 ```
 
-The regression run saves `meeting_times.csv` and `meeting_times.pdf`; the skew-t run saves `new_meeting_times.csv` and `new_meeting_times.pdf`. Start with a small `N_REP` when trying the code; the plain Python skew-t run can be long at its one-million-iteration cutoff. Target constants are in each application’s target code. To change the plot style, edit its `plot_results.py`.
+The regression run saves `meeting_times.csv` and `meeting_times.pdf`; the skew-t run saves `new_meeting_times.csv` and `new_meeting_times.pdf`. Start with a small `N_REP` when trying the code; the plain Python skew-t run can be long at its one-million-iteration cutoff. Target constants are in each application’s target code. To change the regression plot style, edit `generic_algorithms/plot_results.py`; the skew-t style is in `skew_t/plot_results.py`.
 
 ## Spherical random walk — Section 5.1
 

@@ -15,12 +15,13 @@ From the repository root:
 
 ```sh
 python -m pip install -r requirements.txt
-python skew_t/run_vi.py           # step 1: fit and save the maps (about 2 minutes)
-python skew_t/run_experiment.py   # step 2: couple with the saved maps
+python skew_t/run_experiment.py   # use the committed VI fit
 ```
 
+To refit the maps first, run `python skew_t/run_vi.py`, then run the experiment again.
+
 1. **VI.** `run_vi.py` fits SCS and DCS by reverse KL using the settings at its top, and writes them, with their VI details under `vi_info`, to `fitted_parameters.json`. Run it only when you change those settings; the committed file already holds the paper fit, so step 2 can run straight away. Rerunning step 1 replaces the committed fit, which Git can restore. If you remove a map from `METHODS`, only the other map is refitted and the removed map's saved fit is kept.
-2. **Coupling.** `run_experiment.py` loads `fitted_parameters.json` and needs no JAX. Each method starts from the same saved initial pairs and stops at meeting or at `MAX_STEPS`. Results are saved to `new_meeting_times.csv` and `new_meeting_times.pdf`, so the saved paper results are not overwritten. It stops with a message if the file is missing, lacks SCS or DCS, or was fitted with a different SCS latitude.
+2. **Coupling.** `run_experiment.py` loads `fitted_parameters.json` and needs no JAX. Each method starts from the same saved initial pairs and stops at meeting or at `MAX_STEPS`. Results are saved to `new_meeting_times.csv` and `new_meeting_times.pdf`, so the saved paper results are not overwritten. It checks only the maps requested in `STEP_SIZES`. It stops with a message if a required fit is missing, has invalid map parameters, or uses a different SCS latitude. The original committed fit has no `vi_info`; its known SCS latitude is 1.1. A run with only Euclidean and stereographic methods does not require the fit file.
 
 Start with a small `N_REP` and `MAX_STEPS`: at the one-million-step cutoff, the Euclidean and stereographic runs take many hours in plain Python.
 
@@ -53,10 +54,10 @@ Coupling settings (top of `run_experiment.py`):
 | SCS | Fitted by VI | h = 0.08; dark-side proposals are rejected directly |
 | DCS | Fitted by VI | Ball-walk radius γ/R = 0.14 |
 
-VI tunes only the map parameters. Proposal steps are fixed separately; they were tuned toward 40% stationary acceptance. Each method keeps the random-number stream it used before this refactor (`seed_offset` 100,000 to 400,000, in table order).
+VI tunes only the map parameters. Proposal steps are fixed separately; they were tuned toward 40% stationary acceptance. Each method keeps the random-number stream it used before this refactor (`seed_offset` 100,000 to 400,000, in table order). The offsets are tied to method names, so removing or reordering methods in `STEP_SIZES` does not change the remaining methods’ streams.
 
 ## Reproducibility
 
-With the pinned library versions, rerunning `run_vi.py` reproduced the committed `fitted_parameters.json` to within 1e-14; small differences are possible on other platforms or versions. With the same fit, the shared sampler gives the same meeting times and acceptance rates as the earlier skew-t code on the same streams. The saved CSV comes from an older implementation with different random streams, so individual meeting times in a new run will differ. In the saved CSV, DCS is labelled `dcs` to match the shared code; the values are unchanged.
+The committed parameters preserve the fit used for the saved results. A new VI run uses the documented seeds and settings, but floating-point arithmetic and numerical implementation changes can alter its optimization trajectory; it is not guaranteed to reproduce the committed values exactly. The JAX target uses a local Student-t CDF expansion near zero so its gradient remains correct when the first two coordinates are equal. With the same fit, the shared sampler gives the same meeting times and acceptance rates as the earlier skew-t code on the same streams. The saved CSV comes from an older implementation with different random streams, so individual meeting times in a new run will differ. In the saved CSV, DCS is labelled `dcs` to match the shared code; the values are unchanged.
 
 [Model and settings](../README.md)

@@ -1,7 +1,7 @@
 """Step 2 of the skew-t experiment: run the couplings with the saved VI fit.
 
-Run run_vi.py first; it saves the SCS and DCS maps to fitted_parameters.json,
-which this script loads. Coupling settings are below.
+The committed fitted_parameters.json is ready to use. Run run_vi.py only
+to refit the SCS and DCS maps. Coupling settings are below.
 """
 from pathlib import Path
 import sys
@@ -28,6 +28,8 @@ STEP_SIZES = {                  # Proposal h for each method, in this order.
     'scs': 0.08,                # Tangent-Gaussian scale on the sphere.
     'dcs': 0.14,                # Ball-walk radius in unit-ball coordinates (gamma/R).
 }
+SEED_OFFSETS = {'stereographic': 100_000, 'euclidean': 200_000,
+                'scs': 300_000, 'dcs': 400_000}
 OUTPUT = FOLDER / 'new_meeting_times.csv'
 
 
@@ -37,17 +39,15 @@ def main():
         raise ValueError(f'N_REP must be between 1 and {len(starts)} saved initial pairs.')
 
     # SCS and DCS maps fitted by run_vi.py; the stereographic map is fixed.
-    parameters = load_parameters(PARAMETERS_FILE)
-    missing = [method for method in ('scs', 'dcs') if method in STEP_SIZES and method not in parameters]
-    if missing:
-        raise ValueError(f'{PARAMETERS_FILE.name} has no fit for {missing}; run skew_t/run_vi.py first.')
+    fitted_methods = [method for method in STEP_SIZES if method in ('scs', 'dcs')]
+    parameters = load_parameters(PARAMETERS_FILE, fitted_methods) if fitted_methods else {}
     parameters['stereographic'] = default_parameters(D, 'stereographic', radius=STEREOGRAPHIC_RADIUS)
 
     # Couple every method from the same saved initial pairs, stopping at meeting.
     methods = {}
-    for index, (method, h) in enumerate(STEP_SIZES.items()):
+    for method, h in STEP_SIZES.items():
         methods[method] = {'h': h, 'parameters': parameters.get(method),
-                           'seed_offset': 100_000 * (index + 1)}  # Previous random streams.
+                           'seed_offset': SEED_OFFSETS[method]}
         if method == 'scs':
             methods[method]['latitude'] = LATITUDE
     rows = run_experiment(log_density, starts[:N_REP], methods, MAX_STEPS, seed=SEED,

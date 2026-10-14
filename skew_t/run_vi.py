@@ -13,6 +13,7 @@ FOLDER = Path(__file__).resolve().parent
 sys.path.insert(0, str(FOLDER.parent))
 
 from generic_algorithms import default_parameters
+from generic_algorithms.transformations import validate_parameters
 from skew_t.target import D, NU, log_density_jax
 
 PARAMETERS_FILE = FOLDER / 'fitted_parameters.json'  # Written here, read by run_experiment.py.
@@ -60,6 +61,7 @@ def save_parameters(parameters, info, path=PARAMETERS_FILE):
 
     Maps already in the file but not refitted are kept unchanged.
     """
+    path = Path(path)
     record = json.loads(path.read_text()) if path.exists() else {}
     vi_info = record.pop('vi_info', {})
     for method, values in parameters.items():
@@ -71,18 +73,25 @@ def save_parameters(parameters, info, path=PARAMETERS_FILE):
     print(f"Saved the {', '.join(m.upper() for m in parameters)} fit to {path.name}", flush=True)
 
 
-def load_parameters(path=PARAMETERS_FILE):
-    """Read the fitted maps saved by save_parameters, as {method: parameters}."""
+def load_parameters(path=PARAMETERS_FILE, methods=('scs', 'dcs')):
+    """Read and validate the requested maps; the original paper fit used latitude 1.1."""
+    path = Path(path)
     if not path.exists():
         raise FileNotFoundError(f'{path} not found; run skew_t/run_vi.py first.')
     record = json.loads(path.read_text())
-    for method, info in record.get('vi_info', {}).items():
-        if method == 'scs' and not np.isclose(info.get('latitude', LATITUDE), LATITUDE):
-            raise ValueError(f"The saved SCS map was fitted with latitude {info['latitude']}, "
+    parameters = {}
+    for method in methods:
+        if method not in record:
+            raise ValueError(f'{path.name} has no {method.upper()} fit; run skew_t/run_vi.py first.')
+        info = record.get('vi_info', {}).get(method, {})
+        saved_latitude = info.get('latitude', 1.1)  # Original committed fit has no vi_info.
+        if method == 'scs' and not np.isclose(saved_latitude, LATITUDE, rtol=0, atol=1e-12):
+            raise ValueError(f'The saved SCS map was fitted with latitude {saved_latitude}, '
                              f'but LATITUDE is {LATITUDE}; rerun skew_t/run_vi.py.')
-    return {method: {name: float(value) if name == 'radius' else np.asarray(value)
-                     for name, value in values.items()}
-            for method, values in record.items() if method != 'vi_info'}
+        parameters[method] = {name: float(value) if name == 'radius' else np.asarray(value, dtype=float)
+                              for name, value in record[method].items()}
+        validate_parameters(parameters[method], D, method, LATITUDE)
+    return parameters
 
 
 if __name__ == '__main__':

@@ -4,20 +4,19 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# Change to "new_meeting_times.csv" to plot a new run.
-RESULTS_FILE = "meeting_times.csv"
+RESULTS_FILE = "new_meeting_times.csv"
 FOLDER = Path(__file__).resolve().parent
 
-def plot_results(results, output=FOLDER / "meeting_times.pdf"):
+def plot_results(results, output=FOLDER / "new_meeting_times.pdf"):
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-    finite = results.loc[results.meeting_time > 0, "meeting_time"].to_numpy()
+    finite = results.loc[results.meeting_time >= 0, "meeting_time"].to_numpy()
     horizon = int(results.iterations.max())
     bins = np.linspace(finite.min(), max(finite.max(), finite.min() + 1), 51) if len(finite) else np.linspace(0, horizon, 51)
     iters = np.arange(horizon + 1)
     for method, label, color in [("stereographic", "Stereographic", "tab:blue"),
                                   ("euclidean", "Euclidean", "tab:orange")]:
         selected = results[results.method == method]
-        tau = np.where(selected.meeting_time > 0, selected.meeting_time, np.inf)
+        tau = np.where(selected.meeting_time >= 0, selected.meeting_time, np.inf)
         finite_tau = tau[np.isfinite(tau)]
         acceptance = selected[["acceptance_rate_chain1", "acceptance_rate_chain2"]].to_numpy().mean()
         if len(finite_tau):
@@ -35,7 +34,7 @@ def plot_results(results, output=FOLDER / "meeting_times.pdf"):
         ax.set_axisbelow(True)
     fig.tight_layout()
     fig.savefig(output, bbox_inches="tight")
-    plt.show()
+    plt.close(fig)
 
 
 if __name__ == "__main__":

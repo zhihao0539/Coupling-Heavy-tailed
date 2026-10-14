@@ -3,7 +3,7 @@
 The experiment now calls the shared [coupling algorithms](../generic_algorithms/README.md). This folder supplies the target log density, data, fixed settings, simulation loop, and plot. No VI is used.
 
 - [target.py](target.py): load and standardize Boston Housing data; evaluate the Student-t regression log density.
-- [run_experiment.py](run_experiment.py): use the shared sampler for stereographic and Euclidean coupling.
+- [run_experiment.py](run_experiment.py): set the fixed parameters and initial states, then call the shared [experiment runner](../generic_algorithms/run_experiment.py).
 - [plot_results.py](plot_results.py): plot the saved meeting times.
 - [BostonHousing.csv](BostonHousing.csv): input data.
 
@@ -22,7 +22,7 @@ The full run uses 1,000 independent initial pairs and 20,000 updates for each of
 | Stereographic | Radius R = sqrt(14); tangent Gaussian step h = 0.007 |
 | Euclidean | Gaussian random-walk step h = 0.03 |
 
-`run_experiment.py` uses the shared `coupled_sampler` for both methods. Every run continues for all 20,000 updates, including after meeting, so acceptance rates use the full run. The shared sampler records meeting at exact equality in proposal coordinates; the earlier regression script used a distance threshold of 1e-12. Repetition-specific seeds make the output independent of worker scheduling. Change `WORKERS` in `run_experiment.py` to run with fewer CPU workers.
+`run_experiment.py` only supplies the model, initial pairs, and two fixed method settings. The shared runner performs the repetitions sequentially; no VI or worker setup is needed. Every pair continues for all 20,000 updates, including after meeting, so acceptance rates use the full run. The shared sampler records meeting at exact equality in proposal coordinates; the earlier regression script used a distance threshold of 1e-12. Fixed seed offsets preserve the previously used random streams.
 
 The new run writes [new_meeting_times.csv](new_meeting_times.csv) and [new_meeting_times.pdf](new_meeting_times.pdf). [meeting_times.csv](meeting_times.csv) and [meeting_times.pdf](meeting_times.pdf) are retained as the previous published experiment for comparison. `plot_results.py` reads the new CSV by default.
 

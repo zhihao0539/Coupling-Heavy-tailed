@@ -1,2 +1,0 @@
--r ../../requirements.txt
-jax==0.5.2

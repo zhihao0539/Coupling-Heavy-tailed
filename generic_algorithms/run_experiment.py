@@ -2,7 +2,6 @@
 
 import csv
 from pathlib import Path
-import time
 
 import numpy as np
 
@@ -33,7 +32,6 @@ def run_experiment(log_pdf, initial_pairs, method_settings, n_steps, *, seed=42,
         raise ValueError('seed must be a nonnegative integer.')
 
     rows = []
-    start = time.perf_counter()
     for rep, (x, y) in enumerate(pairs):
         for method_index, (method, settings) in enumerate(method_settings.items()):
             if 'seed_offset' in settings:
@@ -55,8 +53,7 @@ def run_experiment(log_pdf, initial_pairs, method_settings, n_steps, *, seed=42,
                 acceptance_rate_chain2=result['acceptance_rate_chain2'],
             ))
         if progress_every and ((rep + 1) % progress_every == 0 or rep + 1 == len(pairs)):
-            print(f'Finished {rep + 1}/{len(pairs)} repetitions in '
-                  f'{time.perf_counter() - start:.1f}s', flush=True)
+            print(f'Finished {rep + 1}/{len(pairs)} repetitions', flush=True)
 
     if output_csv is not None:
         output = Path(output_csv)

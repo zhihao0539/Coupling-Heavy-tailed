@@ -24,11 +24,11 @@ The full run uses 1,000 independent initial pairs and 20,000 updates for each of
 
 `run_experiment.py` only supplies the model, initial pairs, and two fixed method settings. The shared runner performs the repetitions sequentially; no VI or worker setup is needed. Every pair continues for all 20,000 updates, including after meeting, so acceptance rates use the full run. The shared sampler records meeting at exact equality in proposal coordinates; the earlier regression script used a distance threshold of 1e-12. Fixed seed offsets preserve the previously used random streams.
 
-The new run writes [new_meeting_times.csv](new_meeting_times.csv) and [new_meeting_times.pdf](new_meeting_times.pdf). [meeting_times.csv](meeting_times.csv) and [meeting_times.pdf](meeting_times.pdf) are retained as the previous published experiment for comparison. `plot_results.py` reads the new CSV by default.
+The run writes [meeting_times.csv](meeting_times.csv) and [meeting_times.pdf](meeting_times.pdf). `plot_results.py` reads that CSV by default.
 
-The new run's results and comparison with the previous saved result are reported below. These are independent stochastic runs; individual meeting times need not match.
+The saved 1,000-repetition results are:
 
-| Method | New meetings | New mean meeting time | New mean acceptance | Previous mean meeting time |
-|---|---:|---:|---:|---:|
-| Stereographic | 1,000/1,000 | 2,297.837 | 23.556% | 2,293.805 |
-| Euclidean | 1,000/1,000 | 9,599.094 | 24.447% | 9,674.510 |
+| Method | Meetings | Mean meeting time | Mean acceptance |
+|---|---:|---:|---:|
+| Stereographic | 1,000/1,000 | 2,297.837 | 23.556% |
+| Euclidean | 1,000/1,000 | 9,599.094 | 24.447% |

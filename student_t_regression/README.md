@@ -3,7 +3,7 @@
 The experiment now calls the shared [coupling algorithms](../generic_algorithms/README.md). This folder supplies the target log density, data, fixed settings, simulation loop, and plot. No VI is used.
 
 - [target.py](target.py): load and standardize Boston Housing data; evaluate the Student-t regression log density.
-- [run_experiment.py](run_experiment.py): set the fixed parameters and initial states, then call the shared [experiment runner](../generic_algorithms/run_experiment.py).
+- [run_experiment.py](run_experiment.py): set the fixed parameters and initial states, then call the shared runner. Its [parameter guide](../generic_algorithms/README.md#run-a-fixed-parameter-experiment) explains each input and output.
 - [plot_results.py](plot_results.py): plot the saved meeting times.
 - [BostonHousing.csv](BostonHousing.csv): input data.
 

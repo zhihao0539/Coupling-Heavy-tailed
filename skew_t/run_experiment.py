@@ -12,10 +12,10 @@ import pandas as pd
 FOLDER = Path(__file__).resolve().parent
 sys.path.insert(0, str(FOLDER.parent))
 
-from generic_algorithms import default_parameters, run_experiment
+from generic_algorithms import default_parameters, run_experiment, load_parameters
 from generic_algorithms.plot_results import plot_results
 from skew_t.target import D, log_density
-from skew_t.run_vi import LATITUDE, PARAMETERS_FILE, load_parameters
+from skew_t.run_vi import LATITUDE, PARAMETERS_FILE
 
 # Coupling settings. Try a small N_REP and MAX_STEPS first.
 N_REP = 1000                    # Number of saved initial pairs to use (at most 1,000).
@@ -40,7 +40,8 @@ def main():
 
     # SCS and DCS maps fitted by run_vi.py; the stereographic map is fixed.
     fitted_methods = [method for method in STEP_SIZES if method in ('scs', 'dcs')]
-    parameters = load_parameters(PARAMETERS_FILE, fitted_methods) if fitted_methods else {}
+    parameters = load_parameters(PARAMETERS_FILE, D, fitted_methods, latitude=LATITUDE,
+                                 legacy_scs_latitude=1.1) if fitted_methods else {}
     parameters['stereographic'] = default_parameters(D, 'stereographic', radius=STEREOGRAPHIC_RADIUS)
 
     # Couple every method from the same saved initial pairs, stopping at meeting.

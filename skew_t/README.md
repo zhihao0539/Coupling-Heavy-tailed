@@ -3,7 +3,7 @@
 The experiment uses the shared [coupling, VI and plotting functions](../generic_algorithms/README.md). This folder supplies the target, the fixed settings and the saved inputs.
 
 - [target.py](target.py): the 100-dimensional Azzalini–Capitanio skew-t log density with ν = 2 and α = (100, −100, 0, …, 0), in NumPy for sampling and in JAX for VI.
-- [run_vi.py](run_vi.py): step 1. Tunes the SCS and DCS maps with the shared `fit_vi` and saves them to `fitted_parameters.json`.
+- [run_vi.py](run_vi.py): step 1. Sets the target and constants, then calls the shared `run_vi` to fit and save the SCS and DCS maps. It contains no application-specific fitting, saving, or loading functions.
 - [run_experiment.py](run_experiment.py): step 2. Loads the saved maps, runs the four couplings with the shared runner and plots them. It does not run VI.
 - `initial_states.npz`: the 1,000 common Euclidean initial pairs used by every method.
 - `fitted_parameters.json`: the saved SCS and DCS maps. The committed file is the fit used for the paper results.
@@ -20,8 +20,8 @@ python skew_t/run_experiment.py   # use the committed VI fit
 
 To refit the maps first, run `python skew_t/run_vi.py`, then run the experiment again.
 
-1. **VI.** `run_vi.py` fits SCS and DCS by reverse KL using the settings at its top, and writes them, with their VI details under `vi_info`, to `fitted_parameters.json`. Run it only when you change those settings; the committed file already holds the paper fit, so step 2 can run straight away. Rerunning step 1 replaces the committed fit, which Git can restore. If you remove a map from `METHODS`, only the other map is refitted and the removed map's saved fit is kept.
-2. **Coupling.** `run_experiment.py` loads `fitted_parameters.json` and needs no JAX. Each method starts from the same saved initial pairs and stops at meeting or at `MAX_STEPS`. Results are saved to `new_meeting_times.csv` and `new_meeting_times.pdf`, so the saved paper results are not overwritten. It checks only the maps requested in `STEP_SIZES`. It stops with a message if a required fit is missing, has invalid map parameters, or uses a different SCS latitude. The original committed fit has no `vi_info`; its known SCS latitude is 1.1. A run with only Euclidean and stereographic methods does not require the fit file.
+1. **VI.** `run_vi.py` passes `METHODS`, `VI_SETTINGS`, `LATITUDE`, and the target to [`generic_algorithms/run_vi.py`](../generic_algorithms/run_vi.py). That shared runner fits SCS and DCS by reverse KL and writes them, with their VI details under `vi_info`, to `fitted_parameters.json`. Run it only when you change those settings; the committed file already holds the paper fit, so step 2 can run straight away. Rerunning step 1 replaces the committed fit, which Git can restore. If you remove a map from `METHODS`, only the other map is refitted and the removed map's saved fit is kept.
+2. **Coupling.** `run_experiment.py` reads `fitted_parameters.json` with the shared `load_parameters` and needs no JAX. Each method starts from the same saved initial pairs and stops at meeting or at `MAX_STEPS`. Results are saved to `new_meeting_times.csv` and `new_meeting_times.pdf`, so the saved paper results are not overwritten. It checks only the maps requested in `STEP_SIZES`. It stops with a message if a required fit is missing, has invalid map parameters, or uses a different SCS latitude. The original committed fit has no `vi_info`; the application explicitly supplies its known SCS latitude of 1.1. A run with only Euclidean and stereographic methods does not require the fit file.
 
 Start with a small `N_REP` and `MAX_STEPS`: at the one-million-step cutoff, the Euclidean and stereographic runs take many hours in plain Python.
 
@@ -44,6 +44,11 @@ VI settings (top of `run_vi.py`):
 | Fitted quantities | Location, radius, horizontal observer | Location, radius, Möbius offset |
 
 Both fits use 4,000 Adam updates and 2,048 reference samples per update. The learning rate is 0.01 for 3,000 updates and then 0.002. A 20,000-sample holdout chooses between the final iterate and the average of the last 500 unconstrained parameter vectors. To fit only one map, remove the other entry from `METHODS`.
+
+Shared optimizer settings are grouped in `VI_SETTINGS`; initial radii, seeds,
+and scan sizes are in `METHODS`. The [shared VI runner guide](../generic_algorithms/README.md#run-vi-from-an-application)
+explains these inputs, the output file, and how to reuse the same runner for
+another target.
 
 Coupling settings (top of `run_experiment.py`):
 

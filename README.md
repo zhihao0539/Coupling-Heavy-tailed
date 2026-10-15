@@ -23,11 +23,7 @@ The regression run saves `meeting_times.csv` and `meeting_times.pdf`. The skew-t
 
 ## Spherical random walk — Section 5.1
 
-[Julia code and run instructions](sphere_random_walk/README.md)
-
 Three Julia files from `Coupling-on-Sphere`: the meeting-time simulation, its required `samplers.jl`, and `make_rw_meeting_times_fig.jl`. All three are in `sphere_random_walk/`; only the plotting script’s input paths were adjusted for this layout.
-
-The Julia source is preserved as requested. Its README records two [issues found during review](sphere_random_walk/README.md#issues-in-the-preserved-julia-code), in the meeting decision and the reconstruction of plot step sizes, that need correction before relying on new Julia results.
 
 ## Student's t regression — Section 5.2
 

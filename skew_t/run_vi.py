@@ -1,4 +1,4 @@
-"""Fit the skew-t SCS and DCS maps using the shared VI runner."""
+"""Step 1 of the skew-t experiment: Fit the skew-t SCS and DCS maps using the shared VI runner."""
 from pathlib import Path
 import sys
 

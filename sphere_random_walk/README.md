@@ -8,6 +8,15 @@ The following three Julia files come from [Coupling-on-Sphere](https://github.co
 
 The source repository is unchanged. The plotting script has been moved into this folder, and its input paths now use `data/` instead of `../data/`. No algorithm or parameter changes were made.
 
+## Issues in the preserved Julia code
+
+Review identified two issues in this original copy. The Julia files are retained unchanged as requested; these issues do not affect the separate Python implementation in `generic_algorithms`.
+
+- In `samplers.jl`, `max_reflection_coupling_step!` compares `rand(RNG)` with the negative log proposal-density ratio. The required meeting probability is `min(1, exp(log_ratio))`, so this comparison requires `randexp(RNG)`, or equivalently `log(rand(RNG)) <= min(0, log_ratio)`. The current uniform comparison gives a different coupling kernel and needs correction before using new simulations as maximal-reflection results.
+- The simulation uses `h = (d+1)^a`, while `make_rw_meeting_times_fig.jl` reconstructs `hs` with `log.(ds)`. That line needs `log.(ds .+ 1)` to match the simulation. This affects the horizontal coordinates in the third, scaled-step-size plot.
+
+## Original run commands
+
 From the repository root, install the Julia packages and run the simulation:
 
 ```sh

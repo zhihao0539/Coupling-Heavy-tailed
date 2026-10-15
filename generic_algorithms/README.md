@@ -11,19 +11,23 @@ The six implementation files are:
 - `run_experiment.py`: a sequential loop over fixed methods and initial pairs, with optional CSV output.
 - `plot_results.py`: shared meeting-time histogram and survival plotting, with a CSV command-line entry point.
 
-`example.py` is a small application. `test_algorithms.py` contains numerical checks. `__init__.py` makes the folder importable. Importing the runners or loading a saved fit does not load JAX; calling `run_vi` or importing `vi.py` does.
+`__init__.py` makes the folder importable and exposes the shared functions. Importing the runners or loading a saved fit does not load JAX; calling `run_vi` or importing `vi.py` does.
+
+Applications follow the same workflow: define the target in `target.py`, optionally fit maps through `run_vi`, run couplings through `run_experiment`, and plot with `plot_results`. The generic runners are imported functions; the application scripts choose the target and settings. The existing regression and skew-t scripts show this workflow without a separate example application.
 
 ## Install and run
 
 From the repository root:
 
 ```sh
-python -m pip install -r generic_algorithms/requirements.txt
-python -m generic_algorithms.example
-python -m unittest generic_algorithms.test_algorithms -v
+python -m pip install -r requirements.txt
+python student_t_regression/run_experiment.py
+python skew_t/run_experiment.py
 ```
 
-Sampling alone needs NumPy. VI additionally needs JAX and SciPy. Plotting additionally needs pandas and Matplotlib, available with `python -m pip install pandas matplotlib`. JAX is configured for 64-bit arithmetic when `vi.py` is imported.
+These commands run the settings in each application, including 1,000 repetitions by default; reduce the repetition and iteration counts there for a short trial. Skew-t uses its saved VI maps. To refit them first, run `python skew_t/run_vi.py`. To redraw existing figures without simulation, use the commands in [Plot saved results](#plot-saved-results).
+
+The repository-root `requirements.txt` pins the experiment dependencies. `generic_algorithms/requirements.txt` lists the same libraries without exact version pins for reuse elsewhere. Sampling alone needs NumPy; VI additionally needs JAX and SciPy; plotting additionally needs pandas and Matplotlib. JAX is configured for 64-bit arithmetic when `vi.py` is imported.
 
 ## Run a fixed-parameter experiment
 
@@ -57,7 +61,7 @@ Each value in `method_settings` is a small dictionary:
 
 For transformed methods, `parameters` includes a length-`d` shift `mu` and positive `radius`. SCS additionally has `horizontal_observer`, a length-`d` vector with norm below `sqrt(latitude * (2 - latitude))`. DCS additionally has `delta`, a length-`d` vector with norm below `1`. `default_parameters` sets the shift and offsets to zero. Euclidean coupling does not use map parameters. See [Sampling methods](#sampling-methods) for the proposal behind each method.
 
-This small example needs only NumPy. Run it from the repository root (for example, save it as `demo.py` and run `python demo.py`):
+This minimal use of the shared runner needs only NumPy:
 
 ```python
 import numpy as np
@@ -153,7 +157,7 @@ The [runner section](#run-a-fixed-parameter-experiment) describes the transforme
 
 ## Meeting times and chains
 
-The result contains `meeting_time`, `iterations`, `acceptance_rate_chain1`, `acceptance_rate_chain2`, `final_x`, and `final_y`. Set `store_chains=True` to also return `chain1` and `chain2`, including initial states, in application coordinates.
+For one pair, the lower-level `coupled_sampler` returns `meeting_time`, `iterations`, `acceptance_rate_chain1`, `acceptance_rate_chain2`, `final_x`, and `final_y`. Set `store_chains=True` on this function to also return `chain1` and `chain2`, including initial states, in application coordinates. For repeated experiments, use `run_experiment`, whose result rows are described above.
 
 - Meeting requires exact equality in native coordinates. Identical starting states have meeting time 0; an unmet pair has `np.inf`.
 - `stop_at_meeting=True` stops at meeting or the iteration limit. Acceptance rates use the updates actually performed. With zero updates they are `np.nan`.
@@ -342,7 +346,7 @@ After training, the independent holdout compares the final iterate with the aver
 
 ### Reading the convergence history
 
-`history["loss"][k]` is the noisy training objective evaluated **before update `k+1`**, whereas `history["theta"][k]` is the parameter vector **after that update**. Thus they are useful as optimization traces, but they are not an objective/parameter pair evaluated at the same iterate. Loss values need not be nonnegative because parameter-independent constants are omitted, and the training loss need not decrease at every update.
+`history["loss"][k]` is the noisy training objective evaluated **before update `k+1`**, whereas `history["theta"][k]` is the parameter vector **after that update**. Thus they are useful as optimization traces, but they are not an objective/parameter pair evaluated at the same iterate. Loss values need not be nonnegative because parameter-independent constants are omitted, and the training loss need not decrease at every update. The omitted reference-density constants differ between map families, so raw losses from stereographic, SCS, and DCS fits should not be compared as KL values.
 
 For a parameter trace, convert an unconstrained row with:
 
@@ -360,6 +364,3 @@ VI tunes the transformation geometry. It does not tune proposal `h`, minimize me
 
 For the skew-t application, [run_vi.py](../skew_t/run_vi.py) takes the JAX target from [target.py](../skew_t/target.py) and supplies the experiment-specific initial values: dimension `100`; SCS latitude `1.1`, initial radius `10/11`, seed `26093001`; DCS initial radius `sqrt(2)`, seed `26092901`. Initial shifts and offsets are zero. It uses the optimizer defaults above, with `chunk_size=4000` for the original DCS scan layout. Small floating-point differences are possible across execution layouts and library versions; see the application README for its output files.
 
-## Checks
-
-The tests cover maps and inverses at several dimensions, Jacobians against numerical derivatives, both proposal marginals against independent draws, Gaussian maximal meeting probability, domain rejection, exact meeting and sticking, known Student-t reference families, VI gradients, and fitting/reusing the returned parameters across different dimensions. They also check the shared VI runner's settings, preservation of unselected saved maps, and the loader's dimension and latitude checks.

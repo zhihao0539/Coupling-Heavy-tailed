@@ -30,9 +30,9 @@ def stdtr_jax(df, t):
 
 
 def log_density_jax(x):
-    """The same density in JAX for fit_vi; one length-D vector in, one scalar out.
+    """The same density in JAX for VI; one length-D vector in, one scalar out.
 
-    Import generic_algorithms.vi first; it switches JAX to 64-bit arithmetic.
+    The shared run_vi runner enables 64-bit JAX before evaluating this target.
     """
     import jax.numpy as jnp
 

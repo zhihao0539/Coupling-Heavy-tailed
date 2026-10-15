@@ -60,9 +60,3 @@ Coupling settings (top of `run_experiment.py`):
 | DCS | Fitted by VI | Ball-walk radius γ/R = 0.14 |
 
 VI tunes only the map parameters. Proposal steps are fixed separately; they were tuned toward 40% stationary acceptance. Each method keeps the random-number stream it used before this refactor (`seed_offset` 100,000 to 400,000, in table order). The offsets are tied to method names, so removing or reordering methods in `STEP_SIZES` does not change the remaining methods’ streams.
-
-## Reproducibility
-
-The committed parameters preserve the fit used for the saved results. A new VI run uses the documented seeds and settings, but floating-point arithmetic and numerical implementation changes can alter its optimization trajectory; it is not guaranteed to reproduce the committed values exactly. The NumPy and JAX targets use the same three-line formula. The small `stdtr_jax` helper evaluates the Student-t CDF through an equivalent symmetric incomplete-beta formula, with no near-zero cutoff or Taylor expansion. With the same fit, the shared sampler gives the same meeting times and acceptance rates as the earlier skew-t code on the same streams. The saved CSV comes from an older implementation with different random streams, so individual meeting times in a new run will differ. In the saved CSV, DCS is labelled `dcs` to match the shared code; the values are unchanged.
-
-[Model and settings](../README.md)

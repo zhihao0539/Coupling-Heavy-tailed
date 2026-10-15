@@ -1,5 +1,10 @@
 """Numerical checks: python -m unittest generic_algorithms.test_algorithms -v."""
 import unittest
+import json
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
 import numpy as np
 from scipy.stats import ks_2samp, norm
 from .algorithms import coupled_proposals, coupled_sampler
@@ -141,6 +146,73 @@ class VIChecks(unittest.TestCase):
             result = coupled_sampler(np.zeros(d), np.ones(d), target, .1, 10,
                                      np.random.default_rng(2), method, p)
             self.assertTrue(np.isfinite(result['final_x']).all())
+
+
+class VIRunnerChecks(unittest.TestCase):
+    def test_runner_matches_direct_fits(self):
+        from .vi import fit_vi
+        import jax.numpy as jnp
+        from .run_vi import run_vi, load_parameters
+        target = lambda x: -2.5 * jnp.log1p(jnp.sum(x * x) / 2)
+        methods = {method: {'seed': index + 7, 'radius': .8}
+                   for index, method in enumerate(['stereographic', 'scs', 'dcs'])}
+        methods['dcs']['steps'] = 4  # A method setting overrides the shared value.
+        shared = dict(steps=3, batch_size=16, holdout_size=32, average_last=2, chunk_size=2,
+                      initial_parameters=None)
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'maps.json'
+            parameters, info, history = run_vi(target, 3, methods, output_json=path,
+                                                target_info={'df': 2}, **shared)
+            loaded = load_parameters(path, 3, methods)
+            for method, settings in methods.items():
+                options = dict(shared, **settings)
+                radius = options.pop('radius')
+                options.pop('initial_parameters')
+                direct, _, direct_history = fit_vi(
+                    target, 3, method, initial_parameters=default_parameters(3, method, radius),
+                    **options)
+                for name in direct:
+                    np.testing.assert_allclose(parameters[method][name], direct[name], atol=1e-12)
+                    np.testing.assert_array_equal(loaded[method][name], parameters[method][name])
+                np.testing.assert_allclose(history[method]['loss'], direct_history['loss'])
+                self.assertEqual(info[method]['steps'], options['steps'])
+                self.assertEqual(info[method]['target_info'], {'df': 2})
+
+    def test_saving_one_map_preserves_other_maps_and_checks_loading(self):
+        from .run_vi import save_parameters, load_parameters
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'maps.json'
+            maps = {method: default_parameters(3, method) for method in ['scs', 'dcs']}
+            save_parameters(maps, {'scs': {'latitude': 1.1}, 'dcs': {'seed': 7}}, path)
+            before = json.loads(path.read_text())
+            save_parameters({'dcs': default_parameters(3, 'dcs', radius=2.)},
+                            {'dcs': {'seed': 8}}, path)
+            after = json.loads(path.read_text())
+            self.assertEqual(after['scs'], before['scs'])
+            self.assertEqual(after['vi_info']['scs'], before['vi_info']['scs'])
+            self.assertEqual(load_parameters(path, 3, ['dcs'])['dcs']['radius'], 2.)
+            with self.assertRaises(ValueError):
+                load_parameters(path, 2, ['dcs'])
+            with self.assertRaises(ValueError):
+                load_parameters(path, 3, ['scs'], latitude=1.2, legacy_scs_latitude=1.2)
+            with self.assertRaises(ValueError):
+                load_parameters(path, 3, ['stereographic'])
+            with self.assertRaises(FileNotFoundError):
+                load_parameters(path.with_name('missing.json'), 3, ['dcs'])
+
+            # Legacy SCS fits require a known latitude, rather than a silent guess.
+            del after['vi_info']
+            path.write_text(json.dumps(after))
+            with self.assertRaises(ValueError):
+                load_parameters(path, 3, ['scs'])
+            loaded = load_parameters(path, 3, ['scs'], legacy_scs_latitude=1.1)
+            np.testing.assert_array_equal(loaded['scs']['mu'], maps['scs']['mu'])
+            script = (
+                'import sys; from generic_algorithms import run_vi, load_parameters; '
+                f'load_parameters({str(path)!r}, 3, ["scs"], legacy_scs_latitude=1.1); '
+                'assert "jax" not in sys.modules'
+            )
+            subprocess.run([sys.executable, '-c', script], check=True)
 
 
 if __name__ == '__main__':

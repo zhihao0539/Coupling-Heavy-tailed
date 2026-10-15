@@ -2,15 +2,16 @@
 
 These functions take the target log density and tuning parameters as inputs. They do not contain a skew-t target, a regression model, a fixed dimension, data loading, or experiment-specific file paths. The Student-t regression and skew-t experiments use these shared functions; each supplies its own `target.py` and run script.
 
-The five implementation files are:
+The six implementation files are:
 
 - `algorithms.py`: maximal-reflection proposal couplings, one shared Metropolis loop, and a single-chain wrapper.
 - `transformations.py`: stereographic, sub-Cauchy (SCS), and DCS maps, inverses, and log Jacobians. Sampling and VI use these same formulas.
 - `vi.py`: reference sampling, reverse-KL objective, Adam, and one `fit_vi` function for all supported transformation families.
+- `run_vi.py`: run VI for selected methods, save the fitted maps, and load them for sampling.
 - `run_experiment.py`: a sequential loop over fixed methods and initial pairs, with optional CSV output.
 - `plot_results.py`: shared meeting-time histogram and survival plotting, with a CSV command-line entry point.
 
-`example.py` is a small application. `test_algorithms.py` contains numerical checks. `__init__.py` makes the folder importable; it does not load JAX unless VI is imported.
+`example.py` is a small application. `test_algorithms.py` contains numerical checks. `__init__.py` makes the folder importable. Importing the runners or loading a saved fit does not load JAX; calling `run_vi` or importing `vi.py` does.
 
 ## Install and run
 
@@ -163,9 +164,88 @@ The result contains `meeting_time`, `iterations`, `acceptance_rate_chain1`, `acc
 
 For a single chain, `sample_chain(x, log_pdf, h, n_steps, rng, ...)` returns `(chain, acceptance_rate)` using the same transition implementation. It includes the initial state. Saving full chains is optional for coupled runs because it can use substantial memory.
 
-## Tune parameters with vi.py
+## Run VI from an application
 
-Use `fit_vi` to choose the **map parameters** before running a coupling experiment. It supports `"stereographic"`, `"scs"`, and `"dcs"`; Euclidean coupling has no map to fit. It returns fitted values without running MCMC or saving files. The application script [skew_t/run_vi.py](../skew_t/run_vi.py) shows how the skew-t experiment calls this function for SCS and DCS; it saves the fit, which [skew_t/run_experiment.py](../skew_t/run_experiment.py) loads and passes to `run_experiment`.
+Use the shared `run_vi` function when an application should only define its target
+and settings. It calls `fit_vi` for each selected method, prints the fitting
+summary, and optionally saves the maps and VI details. The application
+[`skew_t/run_vi.py`](../skew_t/run_vi.py) now contains only imports, constants, and
+one call to this runner; fitting, saving, and loading functions live here.
+
+```python
+from generic_algorithms import run_vi
+from skew_t.target import D, NU, log_density_jax
+
+methods = {
+    "scs": {"radius": 10 / 11, "seed": 26093001, "chunk_size": 250},
+    "dcs": {"radius": NU**0.5, "seed": 26092901, "chunk_size": 4000},
+}
+parameters, info, history = run_vi(
+    log_density_jax, D, methods,
+    latitude=1.1,
+    steps=4000, batch_size=2048, holdout_size=20000,
+    learning_rates=(0.01, 0.002), change_after=3000, average_last=500,
+    target_info={"df": NU},
+    output_json="skew_t/fitted_parameters.json",
+)
+```
+
+This example refits the selected maps when executed. To run the configured
+skew-t fit from the repository root, use `python skew_t/run_vi.py`.
+The generic file is an imported runner, just like `run_experiment.py`; it has no
+standalone experiment or target to run by itself.
+
+```text
+run_vi(log_pdf, dimension, method_settings, *, output_json=None,
+       latitude=1.1, target_info=None, **vi_settings)
+```
+
+| Argument | Meaning |
+|---|---|
+| `log_pdf` | One-vector, scalar-valued JAX target; the same requirements as `fit_vi` below. |
+| `dimension` | Dimension of the original Euclidean target. |
+| `method_settings` | Dictionary with any of `"stereographic"`, `"scs"`, and `"dcs"` as keys. Each value supplies that method's settings. |
+| `radius` inside a method's settings | Convenience setting for the initial map radius, with zero center and offsets; defaults to 1. |
+| `initial_parameters` inside a method's settings | A complete initial map dictionary, for a custom center or offset. Use this instead of `radius`. |
+| `latitude` | Shared SCS latitude, default 1.1. Keep the same value when sampling. |
+| `**vi_settings` | Shared `fit_vi` settings, such as `steps`, `seed`, `batch_size`, and learning rates. A setting inside a method's dictionary overrides the shared value. Omitted values use the `fit_vi` defaults below. |
+| `target_info` | Optional JSON-compatible model description, such as `{"df": 2}`. Stored under each method's `vi_info[method]["target_info"]`; it does not affect fitting. |
+| `output_json` | Optional output path. Existing methods not refitted in this call are preserved. With `None`, no file is written. |
+
+The three returned dictionaries are keyed by method: `parameters["scs"]`,
+`info["scs"]`, and `history["scs"]` contain the corresponding `fit_vi` outputs.
+The JSON keeps maps under their method names and details under `vi_info`, so it
+uses the existing skew-t file format. Histories are returned in memory, not
+written into the JSON. `save_parameters(parameters, info, path)` is also
+available from `generic_algorithms.run_vi` if saving should happen separately.
+
+### Load the fit for sampling
+
+```python
+from generic_algorithms import load_parameters
+
+parameters = load_parameters(
+    "skew_t/fitted_parameters.json", dimension=100, methods=("scs", "dcs"),
+    latitude=1.1, legacy_scs_latitude=1.1,
+)
+```
+
+`load_parameters(path, dimension, methods, *, latitude=1.1,
+legacy_scs_latitude=None)` loads only the requested maps, converts their vectors
+to NumPy arrays, and checks their dimension, admissible parameters, and SCS
+latitude. It does not import JAX. Supply these maps as the `parameters` entries
+of the generic coupling runner's method settings.
+
+New VI files record their SCS latitude. The original skew-t file has no VI
+metadata, so that application explicitly supplies its known historical value
+through `legacy_scs_latitude=1.1`. For another old file, supply its actual known
+latitude or refit it; the loader will not guess. Existing metadata always takes
+precedence over this fallback, and a mismatch with the requested `latitude`
+raises an error.
+
+## Tune one map with vi.py
+
+`fit_vi` is the single-map optimizer used by `run_vi`. It supports `"stereographic"`, `"scs"`, and `"dcs"`; Euclidean coupling has no map to fit. It returns fitted values without running MCMC or saving files. Call it directly when you need control over one individual fit; use `run_vi` above for the usual application workflow.
 
 Import it from the repository root:
 
@@ -282,4 +362,4 @@ For the skew-t application, [run_vi.py](../skew_t/run_vi.py) takes the JAX targe
 
 ## Checks
 
-The tests cover maps and inverses at several dimensions, Jacobians against numerical derivatives, both proposal marginals against independent draws, Gaussian maximal meeting probability, domain rejection, exact meeting and sticking, known Student-t reference families, VI gradients, and fitting/reusing the returned parameters across different dimensions.
+The tests cover maps and inverses at several dimensions, Jacobians against numerical derivatives, both proposal marginals against independent draws, Gaussian maximal meeting probability, domain rejection, exact meeting and sticking, known Student-t reference families, VI gradients, and fitting/reusing the returned parameters across different dimensions. They also check the shared VI runner's settings, preservation of unselected saved maps, and the loader's dimension and latitude checks.

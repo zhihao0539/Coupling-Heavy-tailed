@@ -10,11 +10,20 @@ from .transformations import default_parameters, validate_parameters, map_to_euc
 VI_METHODS = ('stereographic', 'scs', 'dcs')
 
 
-def unpack_parameters(theta, dimension, method, latitude=1.1):
-    """Unconstrained variables -> shift, positive radius, admissible offset."""
-    parameters = {'mu': theta[:dimension], 'radius': jnp.exp(theta[dimension])}
-    if method in ('scs', 'dcs'):
-        v = theta[dimension + 1:]
+def unpack_parameters(theta, dimension, method, latitude=1.1, matrix_dcs=False):
+    """Unconstrained variables -> shift, map scale, admissible offset."""
+    parameters = {'mu': theta[:dimension]}
+    if method in ('stereographic', 'scs') or (method == 'dcs' and matrix_dcs):
+        lower = np.tril_indices(dimension, -1)
+        start = 2 * dimension
+        end = start + len(lower[0])
+        scale = jnp.diag(jnp.exp(theta[dimension:start]))
+        parameters['preconditioning_matrix'] = scale.at[lower].set(theta[start:end])
+        v = theta[end:] if method == 'scs' else None
+    else:
+        parameters['radius'] = jnp.exp(theta[dimension])
+        v = theta[dimension + 1:] if method == 'dcs' else None
+    if v is not None:
         norm = jnp.sqrt(jnp.sum(v * v) + 1e-24)
         limit = math.sqrt(latitude * (2 - latitude)) if method == 'scs' else 1.
         name = 'horizontal_observer' if method == 'scs' else 'delta'
@@ -25,8 +34,14 @@ def unpack_parameters(theta, dimension, method, latitude=1.1):
 def pack_parameters(parameters, method, latitude=1.1):
     dimension = len(parameters['mu'])
     validate_parameters(parameters, dimension, method, latitude)
-    parts = [np.asarray(parameters['mu'], dtype=float), np.array([math.log(parameters['radius'])])]
-    if method in ('scs', 'dcs'):
+    parts = [np.asarray(parameters['mu'], dtype=float)]
+    if method in ('stereographic', 'scs') or (method == 'dcs' and 'preconditioning_matrix' in parameters):
+        scale = (np.asarray(parameters['preconditioning_matrix'], dtype=float)
+                 if 'preconditioning_matrix' in parameters else parameters['radius'] * np.eye(dimension))
+        parts.extend((np.log(np.diag(scale)), scale[np.tril_indices(dimension, -1)]))
+    else:
+        parts.append(np.array([math.log(parameters['radius'])]))
+    if method == 'scs' or (method == 'dcs' and 'preconditioning_matrix' not in parameters):
         offset = np.asarray(parameters['horizontal_observer' if method == 'scs' else 'delta'])
         limit = math.sqrt(latitude * (2 - latitude)) if method == 'scs' else 1.
         norm = np.linalg.norm(offset)
@@ -67,9 +82,9 @@ def sample_reference(key, n, dimension, method, latitude=1.1):
     return jax.lax.while_loop(lambda state: state[2] < n, draw, initial)[1]
 
 
-def reverse_kl(theta, samples, log_pdf, dimension, method, latitude=1.1):
+def reverse_kl(theta, samples, log_pdf, dimension, method, latitude=1.1, matrix_dcs=False):
     """KL(q_theta || target) up to constants; log_pdf takes ONE vector."""
-    parameters = unpack_parameters(theta, dimension, method, latitude)
+    parameters = unpack_parameters(theta, dimension, method, latitude, matrix_dcs)
     x, log_jacobian = map_to_euclidean(samples, method, parameters, latitude, xp=jnp)
     return -jnp.mean(jax.vmap(log_pdf)(x) + log_jacobian)
 
@@ -106,8 +121,10 @@ def fit_vi(log_pdf, dimension, method='scs', *, initial_parameters=None,
     if initial_parameters is None:
         initial_parameters = default_parameters(dimension, method)
     validate_parameters(initial_parameters, dimension, method, latitude)
+    matrix_dcs = method == 'dcs' and 'preconditioning_matrix' in initial_parameters
     theta0 = pack_parameters(initial_parameters, method, latitude)
-    objective = lambda theta, z: reverse_kl(theta, z, log_pdf, dimension, method, latitude)
+    objective = lambda theta, z: reverse_kl(theta, z, log_pdf, dimension, method,
+                                             latitude, matrix_dcs)
     value_and_grad = jax.value_and_grad(objective)
     sample = lambda key, n: sample_reference(key, n, dimension, method, latitude)
 
@@ -138,7 +155,8 @@ def fit_vi(log_pdf, dimension, method='scs', *, initial_parameters=None,
     if not np.isfinite(candidate_losses).all():
         raise FloatingPointError('Non-finite VI holdout objective.')
     chosen = int(np.argmin(candidate_losses))
-    parameters = unpack_parameters(jnp.asarray(candidates[chosen]), dimension, method, latitude)
+    parameters = unpack_parameters(jnp.asarray(candidates[chosen]), dimension, method,
+                                   latitude, matrix_dcs)
     parameters = {k: float(v) if k == 'radius' else np.asarray(v) for k, v in parameters.items()}
     validate_parameters(parameters, dimension, method, latitude)
     info = dict(method=method, dimension=dimension, seed=seed, steps=steps,
@@ -147,9 +165,14 @@ def fit_vi(log_pdf, dimension, method='scs', *, initial_parameters=None,
                 holdout_seed=seed + 500, initial_holdout_loss=float(evaluate(theta0, holdout)),
                 candidate_holdout_losses=candidate_losses,
                 chosen_candidate=['last', f'last_{count}_parameter_average'][chosen])
+    if method in ('stereographic', 'scs'):
+        info['scale_parameterization'] = 'full_cholesky'
     if method == 'scs':
         info['latitude'] = latitude
     elif method == 'dcs':
         info['beta'] = 2
+        if matrix_dcs:
+            info['scale_parameterization'] = 'full_cholesky'
+            info['ball_automorphism'] = 'appendix_b_affine'
     return parameters, info, history
 

@@ -55,11 +55,11 @@ Each value in `method_settings` is a small dictionary:
 | Field | Meaning |
 |---|---|
 | `h` | **Required**, finite positive proposal step size. It is the Gaussian standard deviation in Euclidean coordinates for `euclidean`, the tangent-Gaussian scale on the sphere for `stereographic` and `scs`, and the uniform-ball proposal radius in unit-ball coordinates for `dcs`. Its numerical scale therefore differs across methods. |
-| `parameters` | Optional fixed map parameters for a transformed method; if omitted, `default_parameters(d, method)` supplies zero shift/offset and radius `1`. It is unnecessary for `euclidean`. For a chosen radius, call `default_parameters(d, method, radius=R)`, then change individual fields if needed. This runner **does not fit** parameters. |
+| `parameters` | Optional fixed map parameters for a transformed method; if omitted, `default_parameters(d, method)` supplies a zero shift and an isotropic scale of `1`. It is unnecessary for `euclidean`. For an isotropic scale `R`, call `default_parameters(d, method, radius=R)`; for a matrix, supply `preconditioning_matrix` as described below. This runner **does not fit** parameters. |
 | `latitude` | Optional SCS cap latitude, default `1.1`. For SCS it must lie strictly between `0` and `2`; it has no effect on the other methods. |
 | `seed_offset` | Optional integer offset for a method's proposal stream. With it, repetition `rep` uses `np.random.default_rng(seed + seed_offset + rep)`. Use distinct offsets when reproducing application-specific streams. Without it, the runner uses `np.random.SeedSequence([seed, method_index, rep])`, where `method_index` is the method's position in the dictionary. |
 
-For transformed methods, `parameters` includes a length-`d` shift `mu` and positive `radius`. SCS additionally has `horizontal_observer`, a length-`d` vector with norm below `sqrt(latitude * (2 - latitude))`. DCS additionally has `delta`, a length-`d` vector with norm below `1`. `default_parameters` sets the shift and offsets to zero. Euclidean coupling does not use map parameters. See [Sampling methods](#sampling-methods) for the proposal behind each method.
+For transformed methods, `parameters` includes a length-`d` shift `mu`. Stereographic and SCS maps use `preconditioning_matrix`, a `d`-by-`d` lower-triangular matrix with positive diagonal. `default_parameters(d, method, radius=R)` sets this matrix to `R * I` for those two methods. SCS also has `horizontal_observer`, a length-`d` vector with norm below `sqrt(latitude * (2 - latitude))`. DCS supports either a matrix map with `mu` and `preconditioning_matrix`, or the existing scalar-radius map with `mu`, positive `radius`, and `delta` of norm below `1`. Its default remains the scalar-radius map. Do not combine `preconditioning_matrix` with `radius` or, for DCS, with `delta`. Older saved scalar-radius stereographic and SCS maps remain loadable. Euclidean coupling does not use map parameters. See [Map preconditioning](#map-preconditioning) and [Sampling methods](#sampling-methods).
 
 This minimal use of the shared runner needs only NumPy:
 
@@ -140,6 +140,24 @@ With `log_scale=True`, the histogram uses 35 logarithmic bins and the survival p
 
 The plotter assumes a common iteration cutoff. By default it uses the largest recorded `iterations` as its displayed horizon; pass `horizon` when that may be smaller than the cutoff, for example with `stop_at_meeting=True` when every pair met. Experiments with different censoring cutoffs need a separate survival analysis. Both application run scripts call this function and have no plotting file of their own.
 
+## Map preconditioning
+
+`preconditioning_matrix` is the matrix `L` that stretches the coordinates after the basic projection. For stereographic and SCS, the map has the form `x = mu + L u(z)`, where `u(z)` is the projection before scaling. For matrix DCS, it is `x = mu + L s / sqrt(1 - ||s||²)` for a point `s` in the unit ball. The transformed log density includes `log |det L|`, computed as the sum of the log diagonal entries of `L`; the inverse maps solve `L u = x - mu`. Thus an isotropic `L = R * I` gives the old scalar scale `R`, while a non-diagonal `L` can account for different marginal scales and correlations. The implied scale matrix is `L L.T`; `L` itself is not the covariance matrix.
+
+The implementation requires `L` to be lower triangular with strictly positive diagonal, so it is invertible and its determinant is easy to compute. For example:
+
+```python
+parameters = default_parameters(2, "stereographic", radius=1.0)
+parameters["preconditioning_matrix"] = np.array([[2.0, 0.0], [0.5, 1.0]])
+
+matrix_dcs = {
+    "mu": np.zeros(2),
+    "preconditioning_matrix": np.array([[2.0, 0.0], [0.5, 1.0]]),
+}
+```
+
+The matrix DCS map is the radial map, with no Möbius offset. The existing DCS map with `radius` and `delta` remains available for saved fits and existing experiments. The VI functions fit all entries of the lower triangle for stereographic and SCS. To fit matrix DCS, pass a matrix-form `initial_parameters` dictionary as above; otherwise DCS VI retains its scalar-radius form.
+
 ## Sampling methods
 
 | `method` | Application state and target measure | Native proposal |
@@ -209,8 +227,8 @@ run_vi(log_pdf, dimension, method_settings, *, output_json=None,
 | `log_pdf` | One-vector, scalar-valued JAX target; the same requirements as `fit_vi` below. |
 | `dimension` | Dimension of the original Euclidean target. |
 | `method_settings` | Dictionary with any of `"stereographic"`, `"scs"`, and `"dcs"` as keys. Each value supplies that method's settings. |
-| `radius` inside a method's settings | Convenience setting for the initial map radius, with zero center and offsets; defaults to 1. |
-| `initial_parameters` inside a method's settings | A complete initial map dictionary, for a custom center or offset. Use this instead of `radius`. |
+| `radius` inside a method's settings | Convenience setting for an isotropic initial scale, with zero center and offsets; defaults to 1. It initializes `preconditioning_matrix=radius * I` for stereographic and SCS, and a scalar `radius` for DCS. |
+| `initial_parameters` inside a method's settings | A complete initial map dictionary, for a custom center, observer, offset, or matrix. Use this instead of the `radius` shortcut. For matrix DCS, supply `mu` and `preconditioning_matrix` without `delta`. |
 | `latitude` | Shared SCS latitude, default 1.1. Keep the same value when sampling. |
 | `**vi_settings` | Shared `fit_vi` settings, such as `steps`, `seed`, `batch_size`, and learning rates. A setting inside a method's dictionary overrides the shared value. Omitted values use the `fit_vi` defaults below. |
 | `target_info` | Optional JSON-compatible model description, such as `{"df": 2}`. Stored under each method's `vi_info[method]["target_info"]`; it does not affect fitting. |
@@ -297,7 +315,7 @@ fit_vi(log_pdf, dimension, method='scs', *, initial_parameters=None,
 | `log_pdf` | Differentiable scalar JAX log density described above. | Required |
 | `dimension` | Positive integer dimension of the target vector. | Required |
 | `method` | Map family: `"stereographic"`, `"scs"`, or `"dcs"`. | `"scs"` |
-| `initial_parameters` | Starting map dictionary. Use `default_parameters(dimension, method, radius=R)` for zero shift and offsets with radius `R`. Supplied vectors must have length `dimension` and satisfy the constraints below. | `None`: zero shift/offsets, radius `1` |
+| `initial_parameters` | Starting map dictionary. Use `default_parameters(dimension, method, radius=R)` for an isotropic scale `R`, or supply a valid `preconditioning_matrix` for matrix DCS. Supplied vectors and matrices must have the target dimension. | `None`: zero shift/offsets and isotropic scale `1` |
 | `latitude` | Fixed SCS cap latitude, strictly between `0` and `2`. Use the same value later in sampling. It is not optimized and has no effect on the other families. | `1.1` |
 | `seed` | Random seed for training samples. The selection holdout uses `seed + 500`. | `0` |
 | `steps` | Positive integer number of Adam updates. | `4000` |
@@ -310,9 +328,9 @@ fit_vi(log_pdf, dimension, method='scs', *, initial_parameters=None,
 
 `fit_vi` returns three objects:
 
-- **`parameters`**: the selected physical map parameters, ready for sampling. Every family has a length-`d` NumPy vector `mu` and a positive Python scalar `radius`. SCS also has `horizontal_observer`, with norm below `sqrt(latitude * (2 - latitude))`; DCS has `delta`, with norm below `1`. `latitude` is passed separately. The DCS implementation fixes `beta=2`.
+- **`parameters`**: the selected physical map parameters, ready for sampling. Every family has a length-`d` NumPy vector `mu`. Stereographic and SCS VI return `preconditioning_matrix`; SCS also has `horizontal_observer`, with norm below `sqrt(latitude * (2 - latitude))`. DCS returns either `preconditioning_matrix` for its matrix radial map or a positive scalar `radius` and `delta` of norm below `1` for its legacy map. `latitude` is passed separately. DCS fixes `beta=2`.
 - **`info`**: the method, dimension, training settings, holdout seed, `initial_holdout_loss`, `candidate_holdout_losses`, and `chosen_candidate`. Candidate losses are ordered as `[last_iterate, last_window_average]`; the smaller one determines the returned parameters. SCS also records `latitude`, and DCS records `beta`.
-- **`history`**: `loss`, an array of length `steps`, and `theta`, an array of shape `(steps, p)`, where `p=d+1` for stereographic or `p=2*d+1` for SCS/DCS. `theta` stores unconstrained variables: shift, log radius, and, where needed, the vector used to parameterize the constrained offset.
+- **`history`**: `loss`, an array of length `steps`, and `theta`, an array of shape `(steps, p)`. For stereographic or matrix DCS, `p=d+d(d+1)/2`; for SCS, `p=2d+d(d+1)/2`; for legacy scalar DCS, `p=2d+1`. `theta` stores the shift, log diagonal and free lower-triangle matrix entries (or log radius for scalar DCS), and any constrained observer or offset variables.
 
 To reuse a fitted map, place `parameters` in the chosen method's settings. The following continues the example above using a NumPy evaluator of the same target for the sampling loop:
 
@@ -340,9 +358,9 @@ Let `T_theta` map a reference point `Z` into the target's Euclidean coordinates.
 E[-log_pdf(T_theta(Z)) - log |Jacobian T_theta(Z)|].
 ```
 
-This equals reverse KL, `KL(q_theta || target)`, up to constants independent of the fitted parameters. Each update estimates the expectation with a **Monte Carlo (MC) average** over `batch_size` fresh reference points. JAX computes its gradient, and `adam_update` uses moving averages of the gradient and its square to update `theta`. Its fixed constants are `beta1=0.9`, `beta2=0.999`, and `epsilon=1e-8`. An exponential parameterization keeps the radius positive, and a radial `tanh` parameterization keeps offsets inside their allowed domains.
+This equals reverse KL, `KL(q_theta || target)`, up to constants independent of the fitted parameters. Each update estimates the expectation with a **Monte Carlo (MC) average** over `batch_size` fresh reference points. JAX computes its gradient, and `adam_update` uses moving averages of the gradient and its square to update `theta`. Its fixed constants are `beta1=0.9`, `beta2=0.999`, and `epsilon=1e-8`. An exponential parameterization keeps matrix diagonal entries (or the legacy DCS radius) positive, and a radial `tanh` parameterization keeps offsets inside their allowed domains.
 
-After training, the independent holdout compares the final iterate with the average of the last `min(average_last, steps)` unconstrained vectors. Averaging happens **before** converting the log radius and offset variables into physical parameters. The selected candidate is then converted into the returned `parameters` dictionary. The same transformation formulas in `transformations.py` are used for VI and sampling.
+After training, the independent holdout compares the final iterate with the average of the last `min(average_last, steps)` unconstrained vectors. Averaging happens **before** converting the log diagonal, log radius, and offset variables into physical parameters. The selected candidate is then converted into the returned `parameters` dictionary. The same transformation formulas in `transformations.py` are used for VI and sampling.
 
 ### Reading the convergence history
 
@@ -359,6 +377,8 @@ parameters_at_update_100 = unpack_parameters(
 ```
 
 For SCS, also pass the fitted run's fixed `latitude`. Inspect loss trends and parameter stability; compare the candidate holdout losses with `info["initial_holdout_loss"]`. Holdout selection chooses between two candidates and does not by itself prove convergence to an optimum. For objective values evaluated at selected saved iterates, `sample_reference` and `reverse_kl` can evaluate them on a separate fixed reference sample.
+
+For a matrix DCS trace, call `unpack_parameters(..., matrix_dcs=True)` because `theta` alone does not identify which DCS parameterization produced it.
 
 VI tunes the transformation geometry. It does not tune proposal `h`, minimize meeting time, or alter the target used in the Metropolis correction. The chosen reference family must have finite reverse KL to the target. Differentiability alone is insufficient: a heavy-tailed variational family can have infinite reverse KL to a Gaussian even when a finite MC batch returns a finite value. For constrained targets, first choose appropriate unconstrained coordinates and include their Jacobian in `log_pdf`.
 

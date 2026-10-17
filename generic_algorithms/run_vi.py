@@ -13,7 +13,9 @@ def run_vi(log_pdf, dimension, method_settings, *, output_json=None,
 
     method_settings maps names to settings, e.g. {'scs': {'radius': 1., 'seed': 7}}.
     Each entry overrides the shared fit_vi keywords in vi_settings. radius is a
-    shortcut for zero-centered initial_parameters; supply one or the other.
+    shortcut for zero-centered initial_parameters; for SCS and stereographic
+    it initializes preconditioning_matrix=radius*I. Supply one or the other.
+    Matrix DCS uses an explicit initial_parameters with mu and preconditioning_matrix.
     Returns three dictionaries keyed by method: parameters, info, and history.
     JAX is imported only when this function is called, not when loading fits.
     """
@@ -33,10 +35,20 @@ def run_vi(log_pdf, dimension, method_settings, *, output_json=None,
         print(f'Fitting the {method.upper()} map by VI', flush=True)
         parameters[method], info[method], history[method] = fit_vi(
             log_pdf, dimension, method, **options)
-        info[method]['initial_radius'] = float(options['initial_parameters']['radius'])
+        if 'preconditioning_matrix' in options['initial_parameters']:
+            scale = options['initial_parameters']['preconditioning_matrix']
+            initial_scale = float(np.exp(np.mean(np.log(np.diag(scale)))))
+            info[method]['initial_scale_geometric_mean'] = initial_scale
+        else:
+            info[method]['initial_radius'] = float(options['initial_parameters']['radius'])
         if target_info is not None:
             info[method]['target_info'] = dict(target_info)
-        print(f"  radius {parameters[method]['radius']:.6f}, "
+        if 'preconditioning_matrix' in parameters[method]:
+            scale = parameters[method]['preconditioning_matrix']
+            scale_summary = f"geometric scale {np.exp(np.mean(np.log(np.diag(scale)))):.6f}"
+        else:
+            scale_summary = f"radius {parameters[method]['radius']:.6f}"
+        print(f"  {scale_summary}, "
               f"chosen {info[method]['chosen_candidate']}, "
               f"holdout losses {info[method]['candidate_holdout_losses']}", flush=True)
     if output_json is not None:

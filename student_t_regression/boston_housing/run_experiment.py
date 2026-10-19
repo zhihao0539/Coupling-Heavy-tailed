@@ -6,11 +6,11 @@ import numpy as np
 import pandas as pd
 
 FOLDER = Path(__file__).resolve().parent
-sys.path.insert(0, str(FOLDER.parent))
+sys.path.insert(0, str(FOLDER.parent.parent))
 
 from generic_algorithms import default_parameters, run_experiment
 from generic_algorithms.plot_results import plot_results
-from student_t_regression.target import load_data, log_density
+from student_t_regression.boston_housing.target import load_data, log_density
 
 N_REP = 1000
 N_STEPS = 20000

@@ -21,7 +21,7 @@ From the repository root:
 
 ```sh
 python -m pip install -r requirements.txt
-python student_t_regression/run_experiment.py
+python student_t_regression/boston_housing/run_experiment.py
 python skew_t/run_experiment.py
 ```
 
@@ -87,7 +87,7 @@ rows = run_experiment(
 print(rows[0])
 ```
 
-The chosen step sizes only illustrate the interface; tune them for your target. For the Student-t regression application, [its run script](../student_t_regression/run_experiment.py) creates 1,000 pairs in dimension 14 and uses the following fixed settings with `n_steps=20_000`, `seed=42`, and the default `stop_at_meeting=False`:
+The chosen step sizes only illustrate the interface; tune them for your target. For the Student-t regression application, [its run script](../student_t_regression/boston_housing/run_experiment.py) creates 1,000 pairs in dimension 14 and uses the following fixed settings with `n_steps=20_000`, `seed=42`, and the default `stop_at_meeting=False`:
 
 ```python
 methods = {
@@ -118,7 +118,7 @@ The runner leaves the two chains together after meeting. With its default `stop_
 From the repository root, plot a CSV produced by the shared runner:
 
 ```sh
-python generic_algorithms/plot_results.py student_t_regression/meeting_times.csv
+python generic_algorithms/plot_results.py student_t_regression/boston_housing/meeting_times.csv
 python generic_algorithms/plot_results.py skew_t/meeting_times.csv --log-scale
 ```
 

@@ -1,6 +1,6 @@
 # Coupling heavy-tailed distributions
 
-Both Python experiments use the shared coupling, VI and plotting functions in [`generic_algorithms/`](generic_algorithms/README.md). Each application keeps its target in `target.py`, and its fixed settings and run script, in its own folder: [`student_t_regression/`](student_t_regression/README.md) and [`skew_t/`](skew_t/README.md).
+The Python experiments use the shared coupling, VI and plotting functions in [`generic_algorithms/`](generic_algorithms/README.md). Each application keeps its target in `target.py`, and its fixed settings and run script, in its own folder. The regression experiments are [`student_t_regression/boston_housing/`](student_t_regression/boston_housing/README.md) and [`student_t_regression/nba_salary/`](student_t_regression/nba_salary/README.md); the skew-t experiment is in [`skew_t/`](skew_t/README.md).
 
 Use each application’s `run_experiment.py` for simulation and `generic_algorithms/plot_results.py` for figures.
 
@@ -8,18 +8,20 @@ Install the libraries and reproduce the saved 1,000-repetition figures:
 
 ```sh
 python -m pip install -r requirements.txt
-python generic_algorithms/plot_results.py student_t_regression/meeting_times.csv
+python generic_algorithms/plot_results.py student_t_regression/boston_housing/meeting_times.csv
+python generic_algorithms/plot_results.py student_t_regression/nba_salary/meeting_times.csv --horizon 150
 python generic_algorithms/plot_results.py skew_t/meeting_times.csv --log-scale
 ```
 
 To simulate new results, edit the settings at the top of `run_experiment.py`, then run:
 
 ```sh
-python student_t_regression/run_experiment.py
+python student_t_regression/boston_housing/run_experiment.py
+python student_t_regression/nba_salary/run_experiment.py
 python skew_t/run_experiment.py
 ```
 
-The regression run saves `meeting_times.csv` and `meeting_times.pdf`. The skew-t run loads its SCS and DCS maps from `skew_t/fitted_parameters.json` and saves `new_meeting_times.csv` and `new_meeting_times.pdf`; to refit those maps by VI first, run `python skew_t/run_vi.py`. Start with a small `N_REP` when trying the code; the plain Python skew-t run can be long at its one-million-iteration cutoff. Target constants are in each application’s `target.py`. Both figures come from `generic_algorithms/plot_results.py`; the skew-t figure uses its log-scale option.
+The Boston Housing regression run saves `meeting_times.csv` and `meeting_times.pdf`. The skew-t run loads its SCS and DCS maps from `skew_t/fitted_parameters.json` and saves `new_meeting_times.csv` and `new_meeting_times.pdf`; to refit those maps by VI first, run `python skew_t/run_vi.py`. Start with a small `N_REP` when trying the code; the plain Python skew-t run can be long at its one-million-iteration cutoff. Target constants are in each application’s `target.py`. The figures come from `generic_algorithms/plot_results.py`; the skew-t figure uses its log-scale option.
 
 ## Spherical random walk — Section 5.1
 
@@ -27,7 +29,7 @@ Three Julia files from `Coupling-on-Sphere`: the meeting-time simulation, its re
 
 ## Student's t regression — Section 5.2
 
-[Run the experiment](student_t_regression/run_experiment.py) · [Figure](student_t_regression/meeting_times.pdf) · [Full regression details](student_t_regression/README.md)
+[Run the experiment](student_t_regression/boston_housing/run_experiment.py) · [Figure](student_t_regression/boston_housing/meeting_times.pdf) · [Full regression details](student_t_regression/boston_housing/README.md)
 
 The supplied Boston Housing data are standardized column by column, with no added intercept. The target has 13 regression coefficients and log scale, Student's t errors with ν = 4, a flat coefficient prior and prior density proportional to 1/σ² on σ². Initial states are independent N(0,100 I₁₄). Stereographic coupling uses R = √14 and h = 0.007; Euclidean coupling uses h = 0.03. Each trial runs 20,000 iterations, including after meeting for the acceptance calculation.
 
@@ -37,6 +39,12 @@ The supplied Boston Housing data are standardized column by column, with no adde
 | Euclidean | 1,000/1,000 | 9,599.094 | 24.447% |
 
 These are the fixed-parameter results using the shared sampler. No variational inference is used in this regression experiment.
+
+## NBA salary regression
+
+[Run the experiment](student_t_regression/nba_salary/run_experiment.py) · [Figure](student_t_regression/nba_salary/meeting_times.pdf) · [NBA details](student_t_regression/nba_salary/README.md)
+
+The NBA application uses Student-t errors with 4 degrees of freedom and independent standard Student-t coefficient priors with 83 degrees of freedom. It runs stereographic coupling with the supplied matrix VI fit and 1,000 saved initial pairs. Its settings are `h=0.1` and a 150-update cutoff, stopping each pair at meeting. To refit its map, run `python student_t_regression/nba_salary/run_vi.py`. The data, fitted parameters, initial states, and results are all in `student_t_regression/nba_salary/`.
 
 ## Skew-t comparison — Section 5.3
 
@@ -53,8 +61,8 @@ The SCS and DCS transformation parameters are fitted by reverse-KL variational i
 | Euclidean | 987/1,000 | 55,963.372 |
 | Stereographic | 558/1,000 | 458,504.412 |
 
-For censored methods, the reported mean is the average of min(τ, cutoff). The histogram includes only meeting pairs; the survival curve includes all pairs. Skew-t acceptance is averaged over paths stopped at meeting or censoring, unlike regression acceptance over the full run. The survival panels are not claimed to bound distance to stationarity for these zero-lag, nonstationary starts.
+For censored methods, the reported mean is the average of min(τ, cutoff). The histogram includes only meeting pairs; the survival curve includes all pairs. Skew-t acceptance is averaged over paths stopped at meeting or censoring, unlike Boston Housing acceptance over the full run. The survival panels are not claimed to bound distance to stationarity for these zero-lag, nonstationary starts.
 
-The saved skew-t CSV observations are retained from the validated experiments, which used different NumPy random streams, so individual skew-t meeting times in a new run will differ. A regression rerun reproduces its saved CSV exactly. Meeting times count updates starting from 1; `-1` in a CSV means the pair was censored. The previous implementation is recoverable in Git history; the original user files on disk were not edited.
+The saved skew-t CSV observations are retained from the validated experiments, which used different NumPy random streams, so individual skew-t meeting times in a new run will differ. A Boston Housing rerun reproduces its saved CSV exactly. Meeting times count updates starting from 1; `-1` in a CSV means the pair was censored. The previous implementation is recoverable in Git history; the original user files on disk were not edited.
 
 The variational fits follow [Sub-Cauchy Sampling, Section 3](https://arxiv.org/abs/2601.11066) and [Diffeomorphic MCMC, Appendix D](https://arxiv.org/abs/2608.04284). The settings here use ν = 2, rather than the DCS paper's ν = 3 example.

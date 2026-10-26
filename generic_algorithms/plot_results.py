@@ -44,7 +44,6 @@ def plot_results(results, output, *, log_scale=False, horizon=None):
         tau = np.where(selected.meeting_time >= 0, selected.meeting_time, np.inf)
         finite_tau = tau[np.isfinite(tau)]
         rates = selected[["acceptance_rate_chain1", "acceptance_rate_chain2"]].to_numpy()
-        rates = rates[np.isfinite(rates)]
         acceptance = rates.mean() if len(rates) else np.nan
         shown = finite_tau[finite_tau > 0] if log_scale else finite_tau
         if len(shown):

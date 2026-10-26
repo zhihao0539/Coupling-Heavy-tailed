@@ -52,10 +52,12 @@ def main():
                            'seed_offset': SEED_OFFSETS[method]}
         if method == 'scs':
             methods[method]['latitude'] = LATITUDE
-    rows = run_experiment(log_density, starts[:N_REP], methods, MAX_STEPS, seed=SEED,
-                          stop_at_meeting=True, output_csv=OUTPUT, progress_every=10)
-    plot_results(pd.DataFrame(rows), OUTPUT.with_suffix('.pdf'), log_scale=True, horizon=MAX_STEPS)
+    results = run_experiment(log_density, starts[:N_REP], methods, MAX_STEPS, seed=SEED,
+                          stop_at_meeting=True, output_csv=OUTPUT)
+    plot_results(results, OUTPUT.with_suffix('.pdf'), log_scale=True, horizon=MAX_STEPS)
+
+    return results
 
 
 if __name__ == '__main__':
-    main()
+    results_df = main()

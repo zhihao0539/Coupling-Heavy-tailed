@@ -7,6 +7,8 @@ for the coupling runs and in JAX for VI.
 """
 import numpy as np
 from scipy.special import stdtr
+import jax.numpy as jnp
+from jax.scipy.special import betainc
 
 D = 100        # Dimension.
 NU = 2.0       # Degrees of freedom.
@@ -22,9 +24,6 @@ def log_density(x):
 
 def stdtr_jax(df, t):
     """Student-t CDF: T_df(t) = I_u(df/2, df/2), u = (1 + t/sqrt(df+t²))/2."""
-    import jax.numpy as jnp
-    from jax.scipy.special import betainc
-
     u = (1 + t / jnp.sqrt(df + t * t)) / 2
     return betainc(df / 2, df / 2, u)
 
@@ -34,8 +33,6 @@ def log_density_jax(x):
 
     The shared run_vi runner enables 64-bit JAX before evaluating this target.
     """
-    import jax.numpy as jnp
-
     norm2 = x @ x
     skew = ALPHA * (x[0] - x[1]) * jnp.sqrt((D + NU) / (NU + norm2))
     return -(D + NU) / 2 * jnp.log1p(norm2 / NU) + jnp.log(stdtr_jax(D + NU, skew))

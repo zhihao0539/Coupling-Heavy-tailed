@@ -23,10 +23,10 @@ MAX_STEPS = 1_000_000           # Iteration cutoff; pairs unmet by then are cens
 SEED = 42
 STEREOGRAPHIC_RADIUS = 10       # Fixed stereographic map: zero location, this radius.
 STEP_SIZES = {                  # Proposal h for each method, in this order.
-    'stereographic': 14.0,      # Tangent-Gaussian scale on the sphere.
+    'stereographic': 0.08,      # Tangent-Gaussian scale on the sphere.
     'euclidean': 0.26,          # Gaussian random-walk standard deviation.
-    'scs': 0.08,                # Tangent-Gaussian scale on the sphere.
-    'dcs': 0.14,                # Ball-walk radius in unit-ball coordinates (gamma/R).
+    'scs': 0.3,                # Tangent-Gaussian scale on the sphere.
+    'dcs': 0.2,                # Ball-walk radius in unit-ball coordinates (gamma/R).
 }
 SEED_OFFSETS = {'stereographic': 100_000, 'euclidean': 200_000,
                 'scs': 300_000, 'dcs': 400_000}
@@ -51,10 +51,12 @@ def main():
                            'seed_offset': SEED_OFFSETS[method]}
         if method == 'scs':
             methods[method]['latitude'] = LATITUDE
-    rows = run_experiment(log_density, starts[:N_REP], methods, MAX_STEPS, seed=SEED,
-                          stop_at_meeting=True, output_csv=OUTPUT, progress_every=10)
-    plot_results(pd.DataFrame(rows), OUTPUT.with_suffix('.pdf'), log_scale=True, horizon=MAX_STEPS)
+    results = run_experiment(log_density, starts[:N_REP], methods, MAX_STEPS, seed=SEED,
+                          stop_at_meeting=True, output_csv=OUTPUT)
+    plot_results(results, OUTPUT.with_suffix('.pdf'), log_scale=True, horizon=MAX_STEPS)
+
+    return results
 
 
 if __name__ == '__main__':
-    main()
+    results_df = main()

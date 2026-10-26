@@ -90,6 +90,6 @@ def run_experiment(log_pdf, initial_pairs, method_settings, n_steps, *, seed=42,
 
     if output_csv is not None:
         #write results dataframe as csv file
-        result_df.to_csv(output_csv)
+        result_df.to_csv(output_csv, index = False)
 
     return result_df

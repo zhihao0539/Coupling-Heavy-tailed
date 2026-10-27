@@ -1,4 +1,4 @@
-"""Step 1 of the skew-t experiment: Fit the skew-t SCS and DCS maps using the shared VI runner."""
+"""Step 1: fit matrix stereographic/SCS maps and scalar-radius Mobius DCS."""
 from pathlib import Path
 import sys
 
@@ -17,11 +17,33 @@ VI_SETTINGS = dict(
     steps=STEPS, batch_size=2048, holdout_size=20000,
     average_last=500, learning_rates=(.01, .002), change_after=3000,
 )
-# Initial location and offsets are zero. Remove an entry to refit only one map;
-# the shared runner preserves saved maps that are not refitted.
+# Matrix methods fit the center and all lower-triangular matrix entries.
+# SCS also fits its horizontal observer; DCS fits its center, radius and delta.
+# LATITUDE and the DCS exponent beta=2 stay fixed.
 METHODS = {
-    'scs': {'seed': 26093001, 'radius': 10 / 11, 'chunk_size': 250},
-    'dcs': {'seed': 26092901, 'radius': np.sqrt(NU), 'chunk_size': STEPS},
+    'stereographic': {
+        'seed': 26092801, 'chunk_size': 250,
+        'initial_parameters': {
+            'mu': np.zeros(D),
+            'preconditioning_matrix': np.sqrt(D) * np.eye(D),
+        },
+    },
+    'scs': {
+        'seed': 26093001, 'chunk_size': 250,
+        'initial_parameters': {
+            'mu': np.zeros(D),
+            'preconditioning_matrix': (np.sqrt(D) / 11) * np.eye(D),
+            'horizontal_observer': np.zeros(D),
+        },
+    },
+    'dcs': {
+        'seed': 26092901, 'chunk_size': STEPS,
+        'initial_parameters': {
+            'mu': np.zeros(D),
+            'radius': np.sqrt(NU),
+            'delta': np.zeros(D),
+        },
+    },
 }
 
 

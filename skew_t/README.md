@@ -1,62 +1,106 @@
 # Skew-t coupling comparison
 
-The experiment uses the shared [coupling, VI and plotting functions](../generic_algorithms/README.md). This folder supplies the target, the fixed settings and the saved inputs.
+The target is the 100-dimensional Azzalini-Capitanio skew-t distribution with
+`NU=2`, identity scale, and skewness `(100, -100, 0, ..., 0)`. The experiment
+uses the shared [coupling, VI, and plotting functions](../generic_algorithms/README.md).
 
-- [target.py](target.py): the 100-dimensional Azzalini–Capitanio skew-t log density with ν = 2 and α = (100, −100, 0, …, 0), in NumPy for sampling and in JAX for VI.
-- [run_vi.py](run_vi.py): step 1. Sets the target and constants, then calls the shared `run_vi` to fit and save the SCS and DCS maps. It contains no application-specific fitting, saving, or loading functions.
-- [run_experiment.py](run_experiment.py): step 2. Loads the saved maps, runs the four couplings with the shared runner and plots them. It does not run VI.
-- `initial_states.npz`: the 1,000 common Euclidean initial pairs used by every method.
-- `fitted_parameters.json`: the saved SCS and DCS maps. The committed file is the fit used for the paper results.
-- `meeting_times.csv` and `meeting_times.pdf`: the saved 1,000-repetition results.
+## Files and usage
 
-## Run
+- [run_vi.py](run_vi.py): fit stereographic, SCS, and DCS maps using the shared VI runner.
+- [generate_initial_states.py](generate_initial_states.py): generate common initial pairs through the fitted SCS bright cap.
+- [run_experiment.py](run_experiment.py): load the fits and starts, run all four couplings, and plot the results.
+- [target.py](target.py): NumPy and JAX target log densities.
+- [fitted_parameters.json](fitted_parameters.json): the three fitted maps and VI metadata used for the saved run.
+- [initial_states.npz](initial_states.npz): 1,000 Euclidean initial pairs under `initial_states`, shape `(1000, 2, 100)`.
+- [meeting_times.csv](meeting_times.csv) and [meeting_times.pdf](meeting_times.pdf): the saved 1,000-repetition results and figure.
 
-From the repository root:
+The supplied fits and starts are ready to use. From the repository root:
 
 ```sh
 python -m pip install -r requirements.txt
-python skew_t/run_experiment.py   # use the committed VI fit
+python skew_t/run_experiment.py
 ```
 
-To refit the maps first, run `python skew_t/run_vi.py`, then run the experiment again.
-
-1. **VI.** `run_vi.py` passes `METHODS`, `VI_SETTINGS`, `LATITUDE`, and the target to [`generic_algorithms/run_vi.py`](../generic_algorithms/run_vi.py). That shared runner fits SCS and DCS by reverse KL and writes them, with their VI details under `vi_info`, to `fitted_parameters.json`. Run it only when you change those settings; the committed file already holds the paper fit, so step 2 can run straight away. Rerunning step 1 replaces the committed fit, which Git can restore. If you remove a map from `METHODS`, only the other map is refitted and the removed map's saved fit is kept.
-2. **Coupling.** `run_experiment.py` reads `fitted_parameters.json` with the shared `load_parameters` and needs no JAX. Each method starts from the same saved initial pairs and stops at meeting or at `MAX_STEPS`. Results are saved to `new_meeting_times.csv` and `new_meeting_times.pdf`, so the saved paper results are not overwritten. It checks only the maps requested in `STEP_SIZES`. It stops with a message if a required fit is missing, has invalid map parameters, or uses a different SCS latitude. The original committed fit has no `vi_info`; the application explicitly supplies its known SCS latitude of 1.1. A run with only Euclidean and stereographic methods does not require the fit file.
-
-Start with a small `N_REP` and `MAX_STEPS`: at the one-million-step cutoff, the Euclidean and stereographic runs take many hours in plain Python.
-
-To redraw the saved figure without rerunning anything:
+This replaces `meeting_times.csv` and `meeting_times.pdf`. To refit the maps and
+regenerate their initial pairs before running the couplings, use all three steps:
 
 ```sh
-python generic_algorithms/plot_results.py skew_t/meeting_times.csv --log-scale
+python skew_t/run_vi.py
+python skew_t/generate_initial_states.py
+python skew_t/run_experiment.py
 ```
 
-## Settings
+To redraw the saved figure without simulation:
 
-VI settings (top of `run_vi.py`):
+```sh
+python generic_algorithms/plot_results.py skew_t/meeting_times.csv --log-scale --horizon 1000000
+```
 
-| Setting | SCS | DCS |
-|---|---|---|
-| Fixed map setting | Latitude 1.1 | β = 2 |
-| Initial radius | 10/11 | √2 |
-| Initial location and offset | Zero | Zero |
-| Seed | 26093001 | 26092901 |
-| Fitted quantities | Location, radius, horizontal observer | Location, radius, Möbius offset |
+## VI settings
 
-Both fits use 4,000 Adam updates and 2,048 reference samples per update. The learning rate is 0.01 for 3,000 updates and then 0.002. A 20,000-sample holdout chooses between the final iterate and the average of the last 500 unconstrained parameter vectors. To fit only one map, remove the other entry from `METHODS`.
+| Method | Fitted parameters | Initial values | VI seed |
+|---|---|---|---|
+| Stereographic | Center `mu` and full lower-triangular `preconditioning_matrix` | `mu=0`, matrix `sqrt(D)*I` | 26092801 |
+| SCS | Center `mu`, full lower-triangular `preconditioning_matrix`, and `horizontal_observer` | Center and observer zero, matrix `(sqrt(D)/11)*I` | 26093001 |
+| DCS | Center `mu`, scalar `radius`, and Mobius offset `delta` | Center and offset zero, radius `sqrt(NU)` | 26092901 |
 
-Shared optimizer settings are grouped in `VI_SETTINGS`; initial radii, seeds,
-and scan sizes are in `METHODS`. The [shared VI runner guide](../generic_algorithms/README.md#run-vi-from-an-application)
-explains these inputs, the output file, and how to reuse the same runner for
-another target.
+Matrix diagonal entries stay positive. SCS latitude is fixed at `1.1`, and the
+DCS radial exponent is fixed at `beta=2`. DCS uses the scalar-radius Mobius map.
 
-Coupling settings (top of `run_experiment.py`):
+Each fit uses 4,000 Adam updates and 2,048 fresh reference points per update.
+The learning rate is `0.01` for the first 3,000 updates and `0.002` afterwards.
+An independent 20,000-point holdout compares the last iterate with the average
+of the last 500 unconstrained parameter vectors. All three saved fits select
+the latter. The `vi_info` entries record the settings and losses. These losses
+omit constants and should not be compared directly across map families.
 
-| Method | Map | Proposal step |
-|---|---|---|
-| Stereographic | Fixed: zero location, R = 10 | h = 14 |
-| Euclidean | None | h = 0.26 |
-| SCS | Fitted by VI | h = 0.08; dark-side proposals are rejected directly |
-| DCS | Fitted by VI | Ball-walk radius γ/R = 0.14 |
+## Uniform bright-cap initialization
 
-VI tunes only the map parameters. Proposal steps are fixed separately; they were tuned toward 40% stationary acceptance. Each method keeps the random-number stream it used before this refactor (`seed_offset` 100,000 to 400,000, in table order). The offsets are tied to method names, so removing or reordering methods in `STEP_SIZES` does not change the remaining methods’ streams.
+In the code's zero-centered unit-sphere coordinates, the bright cap is
+
+```text
+B = {z on S^100 : z_last < LATITUDE - 1}.
+```
+
+The generator normalizes independent Gaussian vectors and rejects all points
+with last coordinate at least `0.1`. Accepted points are independent and uniform
+with respect to cap area. It applies the fitted SCS center, preconditioning
+matrix, and observer, then arranges the Euclidean states into 1,000 independent
+pairs. The initialization seed is `43`.
+
+All four methods use these same Euclidean pairs. Their SCS representations are
+uniform on the bright cap; the other methods' native coordinates generally have
+different distributions. The initial Euclidean distribution changes when the
+SCS fit changes, so regenerate `initial_states.npz` after refitting if uniform
+initialization under the updated SCS map is intended.
+
+## Coupling settings and results
+
+The saved run uses `N_REP=1000`, `MAX_STEPS=1_000_000`, and `SEED=42`.
+Proposal settings are fixed separately from VI:
+
+| Method | Proposal step `h` | Seed offset |
+|---|---:|---:|
+| Stereographic | 10.0 | 100000 |
+| Euclidean | 0.35 | 200000 |
+| SCS | 2.0 | 300000 |
+| DCS ball walk | 0.20 | 400000 |
+
+The offsets are tied to method names. Each pair stops at exact meeting in native
+coordinates or at the cutoff. SCS rejects dark-side proposals directly. There
+is no proposal step-size adaptation.
+
+| Method | Meetings by 1,000,000 | Mean / restricted mean meeting time | Mean path acceptance |
+|---|---:|---:|---:|
+| SCS with matrix VI | 1,000/1,000 | 11.416 | 63.754% |
+| DCS ball walk with scalar-radius VI | 1,000/1,000 | 1,268.872 | 24.381% |
+| Euclidean | 968/1,000 | 80,787.652 | 24.927% |
+| Stereographic with matrix VI | 367/1,000 | 651,503.660 | 14.200% |
+
+For censored methods, the reported mean is the average of `min(tau, 1000000)`;
+for fully met methods, it is the ordinary mean. CSV meeting time `-1` denotes a
+censored pair. Acceptance is the unweighted mean of both chains' per-run rates,
+measured through meeting or censoring; it is not a stationary acceptance estimate.
+The histogram includes only meeting pairs, while the survival curve includes all
+pairs. These simultaneous, zero-lag meeting-time statistics do not alone provide
+bounds on distance to stationarity.

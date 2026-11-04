@@ -1,9 +1,6 @@
 # Coupling algorithms and variational inference
 
-Sampling has an explicit function for each coupling and map family. You supply
-that method's parameters directly; experiment calls do not use `method_settings`.
-The transformations and proposal formulas remain in `transformations.py` and
-`algorithms.py`. Importing the package or loading saved fits does not import JAX.
+Sampling has an explicit function for each coupling and map family.
 
 ## Method-specific samplers
 

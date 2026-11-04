@@ -1,0 +1,196 @@
+{
+  "stereographic": {
+    "mu": [
+      0.0019515825867057641,
+      0.004950541917822372
+    ],
+    "preconditioning_matrix": [
+      [
+        1.423831576479496,
+        0.0
+      ],
+      [
+        -0.00022778420178031175,
+        1.428424070019772
+      ]
+    ]
+  },
+  "SCS11": {
+    "mu": [
+      -0.0015569670539536395,
+      -0.0001385771173352877
+    ],
+    "preconditioning_matrix": [
+      [
+        0.7565621972572165,
+        0.0
+      ],
+      [
+        0.00018041113324631882,
+        0.756882243058436
+      ]
+    ],
+    "horizontal_observer": [
+      -0.0020828449073690123,
+      1.3962323654100644e-05
+    ]
+  },
+  "SCS19": {
+    "mu": [
+      0.0001189642979351154,
+      0.0004187437722305979
+    ],
+    "preconditioning_matrix": [
+      [
+        0.6977418968263407,
+        0.0
+      ],
+      [
+        -0.0009429533354247137,
+        0.6969478504370832
+      ]
+    ],
+    "horizontal_observer": [
+      -0.00046249152340540483,
+      -0.0017111996228191758
+    ]
+  },
+  "dcs": {
+    "mu": [
+      0.005300032488352359,
+      -0.002170755480332286
+    ],
+    "preconditioning_matrix": [
+      [
+        1.41511577489451,
+        0.0
+      ],
+      [
+        -0.0030549561435759013,
+        1.412550162885441
+      ]
+    ]
+  },
+  "vi_info": {
+    "stereographic": {
+      "method": "stereographic",
+      "dimension": 2,
+      "seed": 20263027,
+      "steps": 20000,
+      "batch_size": 2048,
+      "learning_rates": [
+        0.01,
+        0.002
+      ],
+      "change_after": 10000,
+      "average_last": 500,
+      "holdout_size": 20000,
+      "holdout_seed": 20263527,
+      "initial_holdout_loss": 0.6931471805599456,
+      "candidate_holdout_losses": [
+        0.693034020105804,
+        0.6931539196008207
+      ],
+      "chosen_candidate": "last",
+      "scale_parameterization": "full_cholesky",
+      "initial_scale_geometric_mean": 1.4142135623730951,
+      "target_info": {
+        "target": "multivariate_student_t",
+        "dimension": 2,
+        "df": 2,
+        "scale": "identity"
+      }
+    },
+    "SCS11": {
+      "method": "scs",
+      "dimension": 2,
+      "seed": 20263028,
+      "steps": 20000,
+      "batch_size": 2048,
+      "learning_rates": [
+        0.01,
+        0.002
+      ],
+      "change_after": 10000,
+      "average_last": 500,
+      "holdout_size": 20000,
+      "holdout_seed": 20263528,
+      "initial_holdout_loss": 1.6876484296197356,
+      "candidate_holdout_losses": [
+        0.19283359852228868,
+        0.19282731138129094
+      ],
+      "chosen_candidate": "last_500_parameter_average",
+      "scale_parameterization": "full_cholesky",
+      "latitude": 1.1,
+      "initial_scale_geometric_mean": 0.12856486930664499,
+      "target_info": {
+        "target": "multivariate_student_t",
+        "dimension": 2,
+        "df": 2,
+        "scale": "identity"
+      }
+    },
+    "SCS19": {
+      "method": "scs",
+      "dimension": 2,
+      "seed": 20263029,
+      "steps": 20000,
+      "batch_size": 2048,
+      "learning_rates": [
+        0.01,
+        0.002
+      ],
+      "change_after": 10000,
+      "average_last": 500,
+      "holdout_size": 20000,
+      "holdout_seed": 20263529,
+      "initial_holdout_loss": 0.659436005433983,
+      "candidate_holdout_losses": [
+        0.6591026668972442,
+        0.6590185871645172
+      ],
+      "chosen_candidate": "last_500_parameter_average",
+      "scale_parameterization": "full_cholesky",
+      "latitude": 1.9,
+      "initial_scale_geometric_mean": 0.6698906348083082,
+      "target_info": {
+        "target": "multivariate_student_t",
+        "dimension": 2,
+        "df": 2,
+        "scale": "identity"
+      }
+    },
+    "dcs": {
+      "method": "dcs",
+      "dimension": 2,
+      "seed": 20263030,
+      "steps": 20000,
+      "batch_size": 2048,
+      "learning_rates": [
+        0.01,
+        0.002
+      ],
+      "change_after": 10000,
+      "average_last": 500,
+      "holdout_size": 20000,
+      "holdout_seed": 20263530,
+      "initial_holdout_loss": -0.6159006509540325,
+      "candidate_holdout_losses": [
+        -0.6931748319383849,
+        -0.6931444059643033
+      ],
+      "chosen_candidate": "last",
+      "beta": 2,
+      "scale_parameterization": "full_cholesky",
+      "ball_automorphism": "appendix_b_affine",
+      "initial_scale_geometric_mean": 1.0,
+      "target_info": {
+        "target": "multivariate_student_t",
+        "dimension": 2,
+        "df": 2,
+        "scale": "identity"
+      }
+    }
+  }
+}

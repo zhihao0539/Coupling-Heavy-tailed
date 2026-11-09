@@ -1,78 +1,55 @@
-# Multivariate Student-t coupling comparison (df=d+1)
+# Meeting time versus dimension for Student-t(d+1)
 
-The six methods are `stereographic`, `SCS11`, `SCS19`, `dcs`, `euclidean`, and `dcs_rw`.
-`SCS11` and `SCS19` use the shared `scs` algorithm with latitudes 1.1 and 1.9.
-They are fitted by separate calls in `run_vi.py` and follow
-the same fitting, loading, coupling and plotting code.
+In dimension d the target is a centered multivariate Student-t with d+1 degrees of
+freedom and identity scale. The comparison uses d = 1, 2, 5, 10, 20, 50, 100.
 
-Dimensions are 1, 2, 5, 10, 20, 50, 100. The target is multivariate Student-t
-with df=d+1 and identity scale matrix. A shared chi-square scale for each
-vector makes its coordinates dependent. Each method uses 1,000 pairs of independent target
-draws and a 1,000,000-update cutoff. The pairs are shared across all methods.
-DCS uses its preconditioning matrix without a Mobius offset.
+| Coupling | Fixed geometry | VI fields |
+|---|---|---|
+| Stereographic | Location 0, radius √d (matrix √d I) | None |
+| SCS11 | Location and horizontal observer 0, latitude 1.1 | Full preconditioning matrix |
+| SCS19 | Location and horizontal observer 0, latitude 1.9 | Full preconditioning matrix |
+| DCS matrix ball walk | Location 0, proposals in the unit ball | Full preconditioning matrix and positive β, fitted jointly |
+| Euclidean random walk | Isotropic Gaussian proposal | None |
 
-- `run_vi.py`: supply each map's initial parameters to its named VI function
-  once per dimension for all four VI maps. Running this script fits and saves
-  the maps directly. Euclidean does not need a VI map.
-- `run_experiment.py`: load the saved maps with the shared parameter loader,
-  then call each method's experiment function explicitly. Each has
-  one editable step-size list; existing random streams are preserved through
-  the uniform `PROPOSAL_STREAMS` dictionary.
-- `plot_results.py`: load all six saved methods through the same loop. The
-  two panels show mean meeting time and step size, with subtitles and no
-  overall title. Per-dimension diagnostics include all six methods together.
-- `run_all.py`: fit maps, run all couplings, then plot. To use completed
-  results without new simulations, run `plot_results.py` alone.
+The saved VI metadata confirms these choices in every dimension. DCS starts
+from β = max(2, π√(d/6)) and L = √(d+1) I when refitted. Its matrix and β
+fully specify the transformation once the center is fixed.
 
-All six methods read and save data under this experiment's own `results/`
-folder. `results/meeting_times.csv` will contain all six methods after the updated experiment runs, and
-each `results/d_XXXX/` folder contains its combined coupling results and
-`fitted_parameters.json`. The four VI maps are stored under `stereographic`,
-`SCS11`, `SCS19`, and `dcs` in that same JSON file. Euclidean needs no VI map.
-Only `SCS11` and `SCS19` have a `latitude` setting. The latitude column in CSVs
-is blank for methods where it is not applicable. There is no `SAVED_RUNS`
-mapping or dependency on results elsewhere in the Codex workspace.
+## Run
 
-The experiment calls the stereographic, SCS, matrix DCS, and Euclidean
-functions directly. SCS11 and SCS19 are two calls to `run_scs_experiment`
-with explicit latitudes and result labels.
-The plotting helper accepts an optional method-style dictionary.
+To use the saved fitted maps, run the coupling and plotting stages.
 
-Error bars are one empirical Monte Carlo standard error. Unrestricted means
-are omitted when any pair is censored; restricted means remain in the tables.
-This code does not include the separate stereographic two-step-size study.
+```sh
+python run_experiment.py
+python plot_results.py
+```
 
-## DCS Gaussian random walk
+To fit the maps first and then run the experiment, use `python run_all.py`.
+For fitting alone, use `python run_vi.py`, or `python run_vi.py --dcs-only`
+to fit only DCS.
 
-`dcs_rw` uses `run_dcs_matrix_random_walk_experiment` and exactly the same
-saved `dcs` center and preconditioning matrix as the ball walk. No extra VI
-fit is needed. Its Gaussian proposal has coordinate standard deviation `h`
-in the native unit ball B(1). A proposal outside B(1) is rejected.
+Production uses 1,000 pairs of independent target draws per dimension and a
+1,000,000-update cutoff. All five methods start from the same pairs. The short
+`run_stereographic`, `run_scs11`, `run_scs19`, `run_dcs_ball`, and
+`run_euclidean` functions call their matching `generic_algorithms` runners.
 
-`DCS_RANDOM_WALK_STEP_SIZES` in `run_experiment.py` contains the following
-calibrated values, in the same order as `DIMENSIONS`:
+## Step sizes
 
-| Dimension | h | Independent pilot acceptance |
-|---|---:|---:|
-| 1 | 9.19687 | 23.11% |
-| 2 | 2.16524 | 23.04% |
-| 5 | 0.5456 | 23.47% |
-| 10 | 0.172029 | 22.90% |
-| 20 | 0.0621627 | 22.98% |
-| 50 | 0.0168939 | 22.87% |
-| 100 | 0.00622 | 22.83% |
+`STEP_SIZES` in `run_experiment.py` contains an editable h for every method
+and dimension. These are the exact calibrated values used in the saved
+experiment. The calibration targeted acceptance averaged across chains and
+pairs through meeting or cutoff. Its `step_sizes.json` records include the
+pilot trials, selection reasons, and independent validation estimates.
 
-The tuning target is the average reported by these experiments: compute
-accepted proposals divided by iterations separately for each chain through
-meeting (or the cutoff), then average those rates across chains and pairs.
-Independent validation used 40,000, 40,000, 20,000, 8,000, 3,000, 1,024, and
-512 pairs respectively, with the saved matrix maps and the 1,000,000-update
-cutoff. Every validation pair met before the cutoff. These are pilot estimates;
-the 1,000-pair production results fluctuate. Retune if the fitted DCS maps or
-stopping rule changes.
+The experiment reads its steps directly from `STEP_SIZES`. To change a step
+for a future run, edit that dictionary.
 
-The original five methods retain their proposal scales, maps, and random
-streams. DCS random walk has its own proposal stream (index 5) and uses the
-same initial pairs. Plotting includes it once its results are available; older
-saved files containing the original five methods can still be plotted.
-Existing saved meeting-time results have not been rerun or replaced.
+## Results
+
+All fitted maps, calibration records, meeting times, summaries, and figures
+are directly under `results/`. Each `d_XXXX/` folder contains that
+dimension's files. The combined `meeting_times.csv` includes the actual h
+used for each row.
+
+Meeting-time error bars are one Monte Carlo standard error across pairs.
+Unrestricted mean meeting times are plotted where every pair met.

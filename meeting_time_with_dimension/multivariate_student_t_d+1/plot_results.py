@@ -1,10 +1,9 @@
-"""Step 3: summarize and plot the six configured coupling methods."""
+"""Summarize and plot meeting times and calibrated step sizes for the five couplings."""
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from run_vi import RESULTS
-from run_experiment import STEP_SIZES, MAX_STEPS
+from run_experiment import RESULTS
 from target import DIMENSIONS
 from generic_algorithms.plot_results import plot_results as plot_generic
 
@@ -12,42 +11,28 @@ STYLES = {
     "stereographic": ("Stereographic", "tab:blue"),
     "SCS11": ("SCS11", "tab:green"),
     "SCS19": ("SCS19", "tab:red"),
-    "dcs": ("DCS (matrix)", "tab:purple"),
+    "dcs": ("DCS matrix ball walk", "tab:purple"),
     "euclidean": ("Euclidean", "tab:orange"),
-    "dcs_rw": ("DCS-Gaussian random walk (matrix)", "tab:brown"),
 }
-MARKERS = {"stereographic": "o", "SCS11": "^", "SCS19": "s", "dcs": "D", "euclidean": "v", "dcs_rw": "P"}
+MARKERS = {"stereographic": "o", "SCS11": "^", "SCS19": "s", "dcs": "D", "euclidean": "v"}
 
 
 def read_results(root):
+    frames = [pd.read_csv(path) for d in DIMENSIONS
+              if (path := root / f"d_{d:04d}" / "meeting_times.csv").exists()]
+    if frames:
+        return pd.concat(frames, ignore_index=True)
     path = root / "meeting_times.csv"
     if path.exists():
         return pd.read_csv(path)
-    frames = [pd.read_csv(path).assign(dimension=d) for d in DIMENSIONS
-              if (path := root / f"d_{d:04d}" / "meeting_times.csv").exists()]
-    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=["method"])
+    raise FileNotFoundError(f"No meeting-time results in {root}. Run run_experiment.py first.")
 
 
 def load_results():
-    local = read_results(RESULTS)
-    frames = []
-    for name in STYLES:
-        rows = local[local.method == name]
-        if rows.empty:
-            if name == "dcs_rw":
-                print("No saved DCS random-walk results yet; plotting the existing methods.")
-                continue
-            raise FileNotFoundError(f"No saved results for {name} in {RESULTS}.")
-        rows = rows.copy().assign(method=name)
-        if "h" not in rows:
-            rows["h"] = [STEP_SIZES[name][list(DIMENSIONS).index(int(d))] for d in rows.dimension]
-        for column, value in {"cutoff": MAX_STEPS, "initialization": "target",
-                              "scs_latitude": {"SCS11": 1.1, "SCS19": 1.9}.get(name, np.nan)}.items():
-            if column not in rows:
-                rows[column] = value
-        rows["df"] = rows.dimension + 1
-        frames.append(rows)
-    results = pd.concat(frames, ignore_index=True)
+    results = read_results(RESULTS)
+    for d, rows in results.groupby("dimension"):
+        if set(rows.method) != set(STYLES):
+            raise ValueError(f"Incomplete set of coupling methods for dimension {d}.")
     if results.duplicated(["dimension", "method", "replicate"]).any():
         raise ValueError("Duplicate method/dimension/replicate results.")
     if not results.initialization.eq("target").all():
@@ -58,14 +43,11 @@ def load_results():
 def summarize(results, horizon=None):
     if results.cutoff.nunique() != 1:
         raise ValueError("The saved runs must use a common cutoff.")
-    cutoff = int(results.cutoff.iloc[0])
-    horizon = cutoff if horizon is None else int(horizon)
-    if not 0 < horizon <= cutoff:
-        raise ValueError("horizon must be positive and no larger than the saved cutoff.")
+    horizon = int(results.cutoff.iloc[0]) if horizon is None else int(horizon)
     summaries = []
     for (d, method), rows in results.groupby(["dimension", "method"], sort=True):
         tau = rows.meeting_time.to_numpy()
-        met = (tau >= 0) & (tau <= horizon)
+        met = tau >= 0
         restricted = np.where(met, tau, horizon)
         se = restricted.std(ddof=1)/np.sqrt(len(tau)) if len(tau) > 1 else np.nan
         summaries.append(dict(
@@ -102,7 +84,7 @@ def main():
         ax.set_xscale("log")
         ax.set_yscale("log")
         ax.set_xticks(dimensions, [str(d) for d in dimensions])
-        ax.set_xlabel("Dimension d (multivariate Student-t, df = d + 1)")
+        ax.set_xlabel("Dimension d (each coordinate has df = d + 1)")
         ax.grid(True, alpha=0.3)
         ax.set_axisbelow(True)
     axes[1].legend(fontsize=9)

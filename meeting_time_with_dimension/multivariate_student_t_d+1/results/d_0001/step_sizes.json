@@ -1,0 +1,266 @@
+{
+  "dimension": 1,
+  "df": 2,
+  "fit_sha256": "d497ad6dfaa8e90325e78abfb535985ca617d50d96f96c3200e7c3371065c74b",
+  "target": 0.23,
+  "tolerance": 0.015,
+  "cutoff": 1000000,
+  "pilot_pairs": 512,
+  "validation_pairs": 1024,
+  "methods": {
+    "stereographic": {
+      "h": 2.0,
+      "selection": "fastest_pilot_no_bracket",
+      "pilot": {
+        "h": 2.0,
+        "acceptance": 0.9219646039587153,
+        "mcse": 0.0053974691811556445,
+        "mean_iterations": 4.1484375,
+        "censored": 0
+      },
+      "validation": {
+        "h": 2.0,
+        "acceptance": 0.911666699653541,
+        "mcse": 0.004034670209730587,
+        "mean_iterations": 4.169921875,
+        "censored": 0
+      },
+      "trials": [
+        {
+          "h": 1.0,
+          "acceptance": 0.9396381683234825,
+          "mcse": 0.004492475664396026,
+          "mean_iterations": 5.0,
+          "censored": 0
+        },
+        {
+          "h": 2.0,
+          "acceptance": 0.9219646039587153,
+          "mcse": 0.0053974691811556445,
+          "mean_iterations": 4.1484375,
+          "censored": 0
+        },
+        {
+          "h": 4.0,
+          "acceptance": 0.9013026511958135,
+          "mcse": 0.00543478484002646,
+          "mean_iterations": 5.802734375,
+          "censored": 0
+        },
+        {
+          "h": 8.0,
+          "acceptance": 0.8798292965299531,
+          "mcse": 0.005764951494201139,
+          "mean_iterations": 8.26953125,
+          "censored": 0
+        }
+      ]
+    },
+    "SCS11": {
+      "h": 2.0,
+      "selection": "fastest_pilot_no_bracket",
+      "pilot": {
+        "h": 2.0,
+        "acceptance": 0.7167026321256728,
+        "mcse": 0.010828322628895479,
+        "mean_iterations": 4.1953125,
+        "censored": 0
+      },
+      "validation": {
+        "h": 2.0,
+        "acceptance": 0.7263705929237997,
+        "mcse": 0.007857850776696297,
+        "mean_iterations": 4.1767578125,
+        "censored": 0
+      },
+      "trials": [
+        {
+          "h": 1.0,
+          "acceptance": 0.8046366601968307,
+          "mcse": 0.009307232058064201,
+          "mean_iterations": 4.349609375,
+          "censored": 0
+        },
+        {
+          "h": 2.0,
+          "acceptance": 0.7167026321256728,
+          "mcse": 0.010828322628895479,
+          "mean_iterations": 4.1953125,
+          "censored": 0
+        },
+        {
+          "h": 4.0,
+          "acceptance": 0.646270102624267,
+          "mcse": 0.011302992200097164,
+          "mean_iterations": 5.328125,
+          "censored": 0
+        },
+        {
+          "h": 8.0,
+          "acceptance": 0.5817041662606321,
+          "mcse": 0.010100267462797538,
+          "mean_iterations": 8.87109375,
+          "censored": 0
+        }
+      ]
+    },
+    "SCS19": {
+      "h": 2.0,
+      "selection": "fastest_pilot_no_bracket",
+      "pilot": {
+        "h": 2.0,
+        "acceptance": 0.8281666330945605,
+        "mcse": 0.008264875820425897,
+        "mean_iterations": 6.236328125,
+        "censored": 0
+      },
+      "validation": {
+        "h": 2.0,
+        "acceptance": 0.840282869207315,
+        "mcse": 0.005530883295496626,
+        "mean_iterations": 6.1162109375,
+        "censored": 0
+      },
+      "trials": [
+        {
+          "h": 1.0,
+          "acceptance": 0.873789990180766,
+          "mcse": 0.007006698353885516,
+          "mean_iterations": 8.6640625,
+          "censored": 0
+        },
+        {
+          "h": 2.0,
+          "acceptance": 0.8281666330945605,
+          "mcse": 0.008264875820425897,
+          "mean_iterations": 6.236328125,
+          "censored": 0
+        },
+        {
+          "h": 4.0,
+          "acceptance": 0.7821773841075521,
+          "mcse": 0.00834910040526314,
+          "mean_iterations": 7.484375,
+          "censored": 0
+        },
+        {
+          "h": 8.0,
+          "acceptance": 0.7585091670147369,
+          "mcse": 0.007890557258016576,
+          "mean_iterations": 11.2265625,
+          "censored": 0
+        }
+      ]
+    },
+    "dcs": {
+      "h": 11.416388304026121,
+      "selection": "within_tolerance",
+      "pilot": {
+        "h": 11.416388304026121,
+        "acceptance": 0.22694661332475988,
+        "mcse": 0.011916578098864608,
+        "mean_iterations": 11.650390625,
+        "censored": 0
+      },
+      "validation": {
+        "h": 11.416388304026121,
+        "acceptance": 0.2147894318883077,
+        "mcse": 0.007989087543941559,
+        "mean_iterations": 11.7568359375,
+        "censored": 0
+      },
+      "trials": [
+        {
+          "h": 2.4,
+          "acceptance": 0.5948723422844517,
+          "mcse": 0.01462815391962948,
+          "mean_iterations": 2.498046875,
+          "censored": 0
+        },
+        {
+          "h": 4.8,
+          "acceptance": 0.41469508814495126,
+          "mcse": 0.014875514740545466,
+          "mean_iterations": 4.88671875,
+          "censored": 0
+        },
+        {
+          "h": 9.6,
+          "acceptance": 0.26192329811126625,
+          "mcse": 0.012953941163222548,
+          "mean_iterations": 9.7734375,
+          "censored": 0
+        },
+        {
+          "h": 19.2,
+          "acceptance": 0.1665125356791253,
+          "mcse": 0.010533197268709977,
+          "mean_iterations": 18.9140625,
+          "censored": 0
+        },
+        {
+          "h": 13.576450198781712,
+          "acceptance": 0.20893622831757483,
+          "mcse": 0.011627116439752005,
+          "mean_iterations": 13.765625,
+          "censored": 0
+        },
+        {
+          "h": 11.416388304026121,
+          "acceptance": 0.22694661332475988,
+          "mcse": 0.011916578098864608,
+          "mean_iterations": 11.650390625,
+          "censored": 0
+        }
+      ]
+    },
+    "euclidean": {
+      "h": 19.2,
+      "selection": "within_tolerance",
+      "pilot": {
+        "h": 19.2,
+        "acceptance": 0.22314508183366152,
+        "mcse": 0.010281674722133404,
+        "mean_iterations": 13.83203125,
+        "censored": 0
+      },
+      "validation": {
+        "h": 19.2,
+        "acceptance": 0.23676965012206708,
+        "mcse": 0.008266137519494333,
+        "mean_iterations": 14.5341796875,
+        "censored": 0
+      },
+      "trials": [
+        {
+          "h": 2.4,
+          "acceptance": 0.674712324049388,
+          "mcse": 0.012571493873255771,
+          "mean_iterations": 10.201171875,
+          "censored": 0
+        },
+        {
+          "h": 4.8,
+          "acceptance": 0.5201377969751253,
+          "mcse": 0.013324132346231077,
+          "mean_iterations": 5.423828125,
+          "censored": 0
+        },
+        {
+          "h": 9.6,
+          "acceptance": 0.35329294148792445,
+          "mcse": 0.012274023026011703,
+          "mean_iterations": 7.94140625,
+          "censored": 0
+        },
+        {
+          "h": 19.2,
+          "acceptance": 0.22314508183366152,
+          "mcse": 0.010281674722133404,
+          "mean_iterations": 13.83203125,
+          "censored": 0
+        }
+      ]
+    }
+  }
+}

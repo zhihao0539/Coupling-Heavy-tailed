@@ -1,7 +1,4 @@
-"""Fit the VI maps, run all six coupling methods, then plot.
-
-For existing results only, run plot_results.py instead.
-"""
+"""Fit the maps, run the five couplings with configured steps, then plot."""
 
 
 def main():

@@ -7,6 +7,7 @@ import numpy as np
 from .transformations import (
     validate_stereographic_parameters, validate_scs_parameters,
     validate_dcs_parameters, validate_dcs_matrix_parameters,
+    validate_dcs_beta,
 )
 
 
@@ -20,8 +21,8 @@ def run_stereographic_vi(log_pdf, dimension, *, mu, preconditioning_matrix, tune
 
     print(f'Fitting the {label.upper()} map by VI', flush=True)
     result = fit_stereographic_vi(log_pdf, dimension,
-        mu=mu, preconditioning_matrix=preconditioning_matrix, tune=tune,
-        seed=seed, steps=steps, batch_size=batch_size, learning_rates=learning_rates,
+        mu=mu, preconditioning_matrix=preconditioning_matrix,
+        tune=tune, seed=seed, steps=steps, batch_size=batch_size, learning_rates=learning_rates,
         change_after=change_after, average_last=average_last,
         holdout_size=holdout_size, chunk_size=chunk_size)
     initial = dict(mu=mu, preconditioning_matrix=preconditioning_matrix)
@@ -40,8 +41,8 @@ def run_scs_vi(log_pdf, dimension, *, mu, preconditioning_matrix,
     print(f'Fitting the {label.upper()} map by VI', flush=True)
     result = fit_scs_vi(log_pdf, dimension,
         mu=mu, preconditioning_matrix=preconditioning_matrix,
-        horizontal_observer=horizontal_observer, latitude=latitude, tune=tune,
-        seed=seed, steps=steps, batch_size=batch_size, learning_rates=learning_rates,
+        horizontal_observer=horizontal_observer, latitude=latitude,
+        tune=tune, seed=seed, steps=steps, batch_size=batch_size, learning_rates=learning_rates,
         change_after=change_after, average_last=average_last,
         holdout_size=holdout_size, chunk_size=chunk_size)
     initial = dict(mu=mu, preconditioning_matrix=preconditioning_matrix,
@@ -49,7 +50,7 @@ def run_scs_vi(log_pdf, dimension, *, mu, preconditioning_matrix,
     return _finish_fit(result, initial, label, output_json, target_info)
 
 
-def run_dcs_vi(log_pdf, dimension, *, mu, radius, delta, tune=None,
+def run_dcs_vi(log_pdf, dimension, *, mu, radius, delta, beta=2.0, tune=None,
         output_json=None, label='dcs', target_info=None,
         seed=0, steps=4000, batch_size=2048,
         learning_rates=(.01, .002), change_after=3000,
@@ -59,15 +60,15 @@ def run_dcs_vi(log_pdf, dimension, *, mu, radius, delta, tune=None,
 
     print(f'Fitting the {label.upper()} map by VI', flush=True)
     result = fit_dcs_vi(log_pdf, dimension,
-        mu=mu, radius=radius, delta=delta, tune=tune,
-        seed=seed, steps=steps, batch_size=batch_size, learning_rates=learning_rates,
+        mu=mu, radius=radius, delta=delta, beta=beta,
+        tune=tune, seed=seed, steps=steps, batch_size=batch_size, learning_rates=learning_rates,
         change_after=change_after, average_last=average_last,
         holdout_size=holdout_size, chunk_size=chunk_size)
-    initial = dict(mu=mu, radius=radius, delta=delta)
+    initial = dict(mu=mu, radius=radius, delta=delta, beta=beta)
     return _finish_fit(result, initial, label, output_json, target_info)
 
 
-def run_dcs_matrix_vi(log_pdf, dimension, *, mu, preconditioning_matrix, tune=None,
+def run_dcs_matrix_vi(log_pdf, dimension, *, mu, preconditioning_matrix, beta=2.0, tune=None,
         output_json=None, label='dcs', target_info=None,
         seed=0, steps=4000, batch_size=2048,
         learning_rates=(.01, .002), change_after=3000,
@@ -77,11 +78,11 @@ def run_dcs_matrix_vi(log_pdf, dimension, *, mu, preconditioning_matrix, tune=No
 
     print(f'Fitting the {label.upper()} map by VI', flush=True)
     result = fit_dcs_matrix_vi(log_pdf, dimension,
-        mu=mu, preconditioning_matrix=preconditioning_matrix, tune=tune,
-        seed=seed, steps=steps, batch_size=batch_size, learning_rates=learning_rates,
+        mu=mu, preconditioning_matrix=preconditioning_matrix, beta=beta,
+        tune=tune, seed=seed, steps=steps, batch_size=batch_size, learning_rates=learning_rates,
         change_after=change_after, average_last=average_last,
         holdout_size=holdout_size, chunk_size=chunk_size)
-    initial = dict(mu=mu, preconditioning_matrix=preconditioning_matrix)
+    initial = dict(mu=mu, preconditioning_matrix=preconditioning_matrix, beta=beta)
     return _finish_fit(result, initial, label, output_json, target_info)
 
 
@@ -114,6 +115,8 @@ def _print_fit_summary(parameters, info):
         scale_summary = f'geometric scale {_geometric_scale(parameters):.6f}'
     else:
         scale_summary = f"radius {parameters['radius']:.6f}"
+    if 'beta' in info['tuned_parameters']:
+        scale_summary += f", beta {parameters['beta']:.6f}"
     print(f"  {scale_summary}, chosen {info['chosen_candidate']}, "
           f"holdout losses {info['candidate_holdout_losses']}", flush=True)
 
@@ -124,7 +127,7 @@ def save_parameters(parameters, info, path):
     record = json.loads(path.read_text()) if path.exists() else {}
     vi_info = record.pop('vi_info', {})
     for method, values in parameters.items():
-        record[method] = {name: float(value) if name == 'radius' else np.asarray(value).tolist()
+        record[method] = {name: float(value) if name in ('radius', 'beta') else np.asarray(value).tolist()
                           for name, value in values.items()}
         vi_info[method] = info[method]
     record['vi_info'] = vi_info
@@ -134,11 +137,12 @@ def save_parameters(parameters, info, path):
     print(f"Saved the {', '.join(m.upper() for m in parameters)} fit to {path}", flush=True)
 
 
-def load_parameters(path, dimension, methods, *, latitude=1.1, legacy_scs_latitude=None):
-    """Load requested maps without JAX; check dimension, support, and SCS latitude.
+def load_parameters(path, dimension, methods, *, latitude=1.1, legacy_scs_latitude=None,
+                    beta=None):
+    """Load maps without JAX; optionally require a particular fitted DCS beta.
 
     For an older SCS file without latitude metadata, explicitly supply its known
-    latitude as legacy_scs_latitude. New files record latitude under vi_info.
+    latitude as legacy_scs_latitude. Older DCS maps without beta use beta=2.
     """
     path = Path(path)
     if not path.exists():
@@ -153,9 +157,11 @@ def load_parameters(path, dimension, methods, *, latitude=1.1, legacy_scs_latitu
         if method == 'scs':
             _check_scs_latitude(info, latitude, legacy_scs_latitude)
         parameters[name] = {
-            field: float(value) if field == 'radius' else np.asarray(value, dtype=float)
+            field: float(value) if field in ('radius', 'beta') else np.asarray(value, dtype=float)
             for field, value in record[name].items()}
         values = parameters[name]
+        if method == 'dcs':
+            values['beta'] = _saved_dcs_beta(values, info, beta)
         if method == 'stereographic':
             validate_stereographic_parameters(values, dimension)
         elif method == 'scs':
@@ -167,6 +173,22 @@ def load_parameters(path, dimension, methods, *, latitude=1.1, legacy_scs_latitu
         elif method != 'euclidean':
             raise ValueError(f'Unknown method: {method}')
     return parameters
+
+
+def _saved_dcs_beta(parameters, info, requested_beta):
+    """Retain the fitted exponent and detect inconsistent or mismatched metadata."""
+    saved = parameters.get('beta', info.get('beta', 2.0))
+    validate_dcs_beta(saved)
+    if 'beta' in info:
+        validate_dcs_beta(info['beta'])
+        if not np.isclose(saved, info['beta'], rtol=0, atol=1e-12):
+            raise ValueError('The saved DCS parameters and VI metadata have different beta values.')
+    if requested_beta is not None:
+        validate_dcs_beta(requested_beta)
+        if not np.isclose(saved, requested_beta, rtol=0, atol=1e-12):
+            raise ValueError(f'The saved DCS map uses beta={saved}, but beta={requested_beta} '
+                             'was requested; refit DCS or load the matching map.')
+    return float(saved)
 
 
 def _check_scs_latitude(info, latitude, legacy_scs_latitude):

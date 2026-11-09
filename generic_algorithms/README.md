@@ -195,8 +195,8 @@ The VI functions select their reference distributions and transformations direct
 |---|---|---|---|
 | `fit_stereographic_vi` | `run_stereographic_vi` | Whole unit sphere S^d | `mu`, `preconditioning_matrix` |
 | `fit_scs_vi` | `run_scs_vi` | Bright cap, `z[-1] < latitude - 1` | `mu`, `preconditioning_matrix`, `horizontal_observer`, optional `latitude=1.1` |
-| `fit_dcs_vi` | `run_dcs_vi` | Unit ball B(1) | `mu`, `radius`, `delta` |
-| `fit_dcs_matrix_vi` | `run_dcs_matrix_vi` | Unit ball B(1) | `mu`, `preconditioning_matrix` |
+| `fit_dcs_vi` | `run_dcs_vi` | Unit ball B(1) | `mu`, `radius`, `delta`, optional `beta=2.0` |
+| `fit_dcs_matrix_vi` | `run_dcs_matrix_vi` | Unit ball B(1) | `mu`, `preconditioning_matrix`, optional `beta=2.0` |
 
 All four start with `(log_pdf, dimension)` and take the initial map fields as
 keyword arguments. Both the `fit_*_vi` functions and `run_*_vi` runners accept
@@ -206,10 +206,11 @@ keyword arguments. Both the `fit_*_vi` functions and `run_*_vi` runners accept
 |---|---|
 | Stereographic | `mu`, `preconditioning_matrix` |
 | SCS | `mu`, `preconditioning_matrix`, `horizontal_observer` |
-| Mobius DCS | `mu`, `radius`, `delta` |
-| Matrix DCS | `mu`, `preconditioning_matrix` |
+| Mobius DCS | `mu`, `radius`, `delta`, `beta` |
+| Matrix DCS | `mu`, `preconditioning_matrix`, `beta` |
 
-Omitting `tune` or passing `None` fits all the fields listed for that method.
+Omitting `tune` or passing `None` fits the map fields with DCS beta held fixed.
+Include `"beta"` explicitly to learn the exponent along with the selected fields.
 Pass a list or tuple of names to choose a subset, or one name such as
 `tune="preconditioning_matrix"`. A vector or matrix is selected as a whole.
 Omitted fields keep their supplied physical values during optimization,
@@ -217,7 +218,8 @@ holdout selection, and saving. With `tune=()`, the supplied map is evaluated
 throughout the requested steps. Duplicate and unsupported names raise an error.
 
 DCS ball walk and Gaussian random walk can share a VI fit since both use the
-uniform ball reference. DCS uses beta=2. SCS latitude sets the cap and is fixed.
+uniform ball reference. DCS takes `beta=2.0` by default and supports any positive
+exponent. SCS latitude sets the cap and is fixed.
 
 The reference samplers are separately callable from `generic_algorithms.vi`:
 `sample_uniform_sphere(key, n, dimension)`,
@@ -331,7 +333,8 @@ stereographic or matrix DCS, 2d+d(d+1)/2 for SCS, and 2d+1 for Mobius DCS.
 For a selected subset, `theta` contains only that subset in the field order
 shown in the table. `info["theta_slices"]` maps each selected field to its
 start and stop columns. `info["tuned_parameters"]` and
-`info["fixed_parameters"]` record the chosen fields. For example, a matrix-only
+`info["fixed_parameters"]` record the chosen fields. Learning DCS beta adds one
+log-beta coordinate and a physical-scale `history["beta"]` trace. For example, a matrix-only
 fit has d(d+1)/2 columns and a location-only fit has d columns.
 
 For a full fit, use the matching conversion function to inspect its history.
@@ -414,3 +417,27 @@ DCS has separate `dcs_mobius_map` / `dcs_mobius_inverse` and
 `dcs_matrix_map` / `dcs_matrix_inverse` functions. Samplers and VI call these
 directly. The short `dcs_map` / `dcs_inverse` helpers remain available for
 external callers working with either saved representation.
+
+## DCS exponent and the Student-t(d+1) experiment
+
+DCS maps, inverses, coupling runners, and VI support positive `beta`. Matrix
+DCS uses `x = mu + L s / (1 - ||s||**beta)**(1/beta)`. Mobius DCS applies its
+ball automorphism before the radial transformation. Saved maps record beta.
+The loader interprets older DCS maps without beta as using beta=2.
+
+For example, fit a matrix and exponent together with a fixed location.
+
+```python
+parameters, info, history = run_dcs_matrix_vi(
+    log_pdf_jax, dimension=d, mu=np.zeros(d),
+    preconditioning_matrix=np.sqrt(d + 1) * np.eye(d),
+    beta=3.0, tune=("preconditioning_matrix", "beta"),
+)
+```
+
+The optimizer learns `log(beta)` with 0.1 times the usual Adam learning rate.
+The Student-t(d+1) experiment uses this joint fit with mu=0. Its
+`run_experiment.py` sets the proposal steps explicitly and loads the fitted
+beta for sampling. SCS fits only its matrices, stereographic uses radius
+sqrt(d), and all five couplings use the saved results in the experiment's
+`results/` folder.

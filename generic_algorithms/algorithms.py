@@ -4,7 +4,7 @@ import numpy as np
 
 from .transformations import (
     validate_stereographic_parameters, validate_scs_parameters,
-    validate_dcs_parameters, validate_dcs_matrix_parameters,
+    validate_dcs_parameters, validate_dcs_matrix_parameters, validate_dcs_beta,
     stereographic_map, stereographic_inverse, scs_map, scs_inverse,
     dcs_mobius_map, dcs_mobius_inverse, dcs_matrix_map, dcs_matrix_inverse,
 )
@@ -51,11 +51,12 @@ def coupled_scs(x, y, log_pdf, h, n_steps, rng, *,
 
 
 def coupled_dcs_ball(x, y, log_pdf, h, n_steps, rng, *,
-        mu, radius, delta,
+        mu, radius, delta, beta=2.0,
         stop_at_meeting=True, store_chains=False):
     """DCS ball walk with scalar radius and Mobius offset delta; h = gamma/R."""
+    validate_dcs_beta(beta)
     parameters = dict(mu=np.asarray(mu, dtype=float), radius=float(radius),
-                      delta=np.asarray(delta, dtype=float))
+                      delta=np.asarray(delta, dtype=float), beta=float(beta))
     validate_dcs_parameters(parameters, np.size(x))
     def inverse(z):
         return dcs_mobius_inverse(z, parameters)
@@ -67,11 +68,12 @@ def coupled_dcs_ball(x, y, log_pdf, h, n_steps, rng, *,
 
 
 def coupled_dcs_random_walk(x, y, log_pdf, h, n_steps, rng, *,
-        mu, radius, delta,
+        mu, radius, delta, beta=2.0,
         stop_at_meeting=True, store_chains=False):
     """DCS Gaussian walk with scalar radius and Mobius offset; h = sigma/R."""
+    validate_dcs_beta(beta)
     parameters = dict(mu=np.asarray(mu, dtype=float), radius=float(radius),
-                      delta=np.asarray(delta, dtype=float))
+                      delta=np.asarray(delta, dtype=float), beta=float(beta))
     validate_dcs_parameters(parameters, np.size(x))
     def inverse(z):
         return dcs_mobius_inverse(z, parameters)
@@ -83,10 +85,12 @@ def coupled_dcs_random_walk(x, y, log_pdf, h, n_steps, rng, *,
 
 
 def coupled_dcs_matrix_ball(x, y, log_pdf, h, n_steps, rng, *,
-        mu, preconditioning_matrix,
+        mu, preconditioning_matrix, beta=2.0,
         stop_at_meeting=True, store_chains=False):
     """DCS ball walk with a matrix radial map; h is the native ball-step radius."""
+    validate_dcs_beta(beta)
     parameters = _matrix_parameters(mu, preconditioning_matrix)
+    parameters['beta'] = float(beta)
     validate_dcs_matrix_parameters(parameters, np.size(x))
     def inverse(z):
         return dcs_matrix_inverse(z, parameters)
@@ -98,10 +102,12 @@ def coupled_dcs_matrix_ball(x, y, log_pdf, h, n_steps, rng, *,
 
 
 def coupled_dcs_matrix_random_walk(x, y, log_pdf, h, n_steps, rng, *,
-        mu, preconditioning_matrix,
+        mu, preconditioning_matrix, beta=2.0,
         stop_at_meeting=True, store_chains=False):
     """DCS Gaussian walk with a matrix radial map; h is the native standard deviation."""
+    validate_dcs_beta(beta)
     parameters = _matrix_parameters(mu, preconditioning_matrix)
+    parameters['beta'] = float(beta)
     validate_dcs_matrix_parameters(parameters, np.size(x))
     def inverse(z):
         return dcs_matrix_inverse(z, parameters)

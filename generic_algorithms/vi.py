@@ -73,22 +73,25 @@ def fit_scs_vi(log_pdf, dimension, *, mu, preconditioning_matrix,
     return parameters, info, history
 
 
-def fit_dcs_vi(log_pdf, dimension, *, mu, radius, delta, tune=None,
+def fit_dcs_vi(log_pdf, dimension, *, mu, radius, delta, beta=2.0, tune=None,
         seed=0, steps=4000, batch_size=2048,
         learning_rates=(.01, .002), change_after=3000,
         average_last=500, holdout_size=20000, chunk_size=250):
-    """Fit selected Mobius DCS fields using uniform unit-ball reference points."""
-    initial = dict(mu=np.asarray(mu), radius=radius, delta=np.asarray(delta))
+    """Fit selected Mobius DCS fields, including beta when explicitly selected."""
+    initial = dict(mu=np.asarray(mu), radius=radius, delta=np.asarray(delta), beta=beta)
     validate_dcs_parameters(initial, dimension)
-    theta0 = pack_dcs_parameters(mu, radius, delta)
+    theta0 = jnp.concatenate((pack_dcs_parameters(mu, radius, delta, beta=beta),
+                              jnp.array([math.log(beta)])))
+    if tune is None:
+        tune = ("mu", "radius", "delta")
 
     def sample(key, n):
         return sample_uniform_ball(key, n, dimension)
 
     def unpack(theta):
-        return unpack_dcs_parameters(theta, dimension)
+        return unpack_dcs_parameters(theta[:-1], dimension, beta=jnp.exp(theta[-1]))
 
-    sizes = dict(mu=dimension, radius=1, delta=dimension)
+    sizes = dict(mu=dimension, radius=1, delta=dimension, beta=1)
     parameters, info, history = _fit_selected_map(
         log_pdf, dimension, initial, theta0, sizes, tune, unpack, dcs_mobius_map, sample,
         seed=seed, steps=steps, batch_size=batch_size, learning_rates=learning_rates,
@@ -96,34 +99,40 @@ def fit_dcs_vi(log_pdf, dimension, *, mu, radius, delta, tune=None,
         holdout_size=holdout_size, chunk_size=chunk_size)
     validate_dcs_parameters(parameters, dimension)
     info = dict(method='dcs', **info)
-    info.update({'beta': 2})
+    info.update(initial_beta=float(beta), beta=parameters['beta'])
     return parameters, info, history
 
 
-def fit_dcs_matrix_vi(log_pdf, dimension, *, mu, preconditioning_matrix, tune=None,
+def fit_dcs_matrix_vi(log_pdf, dimension, *, mu, preconditioning_matrix, beta=2.0, tune=None,
         seed=0, steps=4000, batch_size=2048,
         learning_rates=(.01, .002), change_after=3000,
         average_last=500, holdout_size=20000, chunk_size=250):
-    """Fit selected matrix DCS fields using uniform unit-ball reference points."""
+    """Fit selected matrix DCS fields, including beta when explicitly selected."""
     initial = _matrix_parameters(mu, preconditioning_matrix)
+    initial['beta'] = beta
     validate_dcs_matrix_parameters(initial, dimension)
-    theta0 = pack_dcs_matrix_parameters(mu, preconditioning_matrix)
+    theta0 = jnp.concatenate((pack_dcs_matrix_parameters(mu, preconditioning_matrix, beta=beta),
+                              jnp.array([math.log(beta)])))
+    if tune is None:
+        tune = ("mu", "preconditioning_matrix")
 
     def sample(key, n):
         return sample_uniform_ball(key, n, dimension)
 
     def unpack(theta):
-        return unpack_dcs_matrix_parameters(theta, dimension)
+        return unpack_dcs_matrix_parameters(theta[:-1], dimension, beta=jnp.exp(theta[-1]))
 
+    sizes = dict(_matrix_field_sizes(dimension), beta=1)
     parameters, info, history = _fit_selected_map(
-        log_pdf, dimension, initial, theta0, _matrix_field_sizes(dimension),
+        log_pdf, dimension, initial, theta0, sizes,
         tune, unpack, dcs_matrix_map, sample,
         seed=seed, steps=steps, batch_size=batch_size, learning_rates=learning_rates,
         change_after=change_after, average_last=average_last,
         holdout_size=holdout_size, chunk_size=chunk_size)
     validate_dcs_matrix_parameters(parameters, dimension)
     info = dict(method='dcs', **info)
-    info.update({'beta': 2, 'scale_parameterization': 'full_cholesky', 'ball_automorphism': 'appendix_b_affine'})
+    info.update(initial_beta=float(beta), beta=parameters['beta'],
+                scale_parameterization='full_cholesky', ball_automorphism='appendix_b_affine')
     return parameters, info, history
 
 
@@ -170,10 +179,17 @@ def _fit_selected_map(log_pdf, dimension, initial, theta0, sizes, tune, unpack, 
         x, log_jacobian = transform(samples, decode(theta), xp=jnp)
         return -jnp.mean(jax.vmap(log_pdf)(x) + log_jacobian)
 
-    theta, info, history = _train_vi(theta0, dimension, objective, sample, **settings)
+    rates = 1.
+    if 'beta' in slices:
+        start, stop = slices['beta']
+        rates = jnp.ones_like(theta0).at[start:stop].set(.1)
+    theta, info, history = _train_vi(theta0, dimension, objective, sample, rate_multipliers=rates, **settings)
     info.update(tuned_parameters=list(slices),
                 fixed_parameters=[name for name in initial if name not in slices],
                 theta_slices=slices)
+    if 'beta' in slices:
+        history['beta'] = np.exp(history['theta'][:, start])
+        info['beta_learning_rate_multiplier'] = .1
     return _numpy_parameters(decode(jnp.asarray(theta))), info, history
 
 
@@ -233,26 +249,29 @@ def unpack_scs_parameters(theta, dimension, latitude=1.1):
     return parameters
 
 
-def pack_dcs_parameters(mu, radius, delta):
-    parameters = dict(mu=np.asarray(mu, dtype=float), radius=float(radius), delta=np.asarray(delta))
+def pack_dcs_parameters(mu, radius, delta, *, beta=2.0):
+    parameters = dict(mu=np.asarray(mu, dtype=float), radius=float(radius), delta=np.asarray(delta), beta=beta)
     validate_dcs_parameters(parameters, len(parameters['mu']))
     parts = [parameters['mu'], np.array([math.log(radius)]), _pack_offset(parameters['delta'], 1.)]
     return jnp.asarray(np.concatenate(parts))
 
 
-def unpack_dcs_parameters(theta, dimension):
+def unpack_dcs_parameters(theta, dimension, *, beta=2.0):
     return dict(mu=theta[:dimension], radius=jnp.exp(theta[dimension]),
-                delta=_unpack_offset(theta[dimension + 1:], 1.))
+                delta=_unpack_offset(theta[dimension + 1:], 1.), beta=beta)
 
 
-def pack_dcs_matrix_parameters(mu, preconditioning_matrix):
+def pack_dcs_matrix_parameters(mu, preconditioning_matrix, *, beta=2.0):
     parameters = _matrix_parameters(mu, preconditioning_matrix)
+    parameters['beta'] = beta
     validate_dcs_matrix_parameters(parameters, len(parameters['mu']))
     return jnp.asarray(_pack_matrix(parameters))
 
 
-def unpack_dcs_matrix_parameters(theta, dimension):
-    return _unpack_matrix(theta, dimension)
+def unpack_dcs_matrix_parameters(theta, dimension, *, beta=2.0):
+    parameters = _unpack_matrix(theta, dimension)
+    parameters['beta'] = beta
+    return parameters
 
 
 def sample_uniform_ball(key, n, dimension):
@@ -309,14 +328,14 @@ def scs_reverse_kl(theta, samples, log_pdf, dimension, latitude=1.1):
     return -jnp.mean(jax.vmap(log_pdf)(x) + log_jacobian)
 
 
-def dcs_reverse_kl(theta, samples, log_pdf, dimension):
-    parameters = unpack_dcs_parameters(theta, dimension)
+def dcs_reverse_kl(theta, samples, log_pdf, dimension, *, beta=2.0):
+    parameters = unpack_dcs_parameters(theta, dimension, beta=beta)
     x, log_jacobian = dcs_mobius_map(samples, parameters, xp=jnp)
     return -jnp.mean(jax.vmap(log_pdf)(x) + log_jacobian)
 
 
-def dcs_matrix_reverse_kl(theta, samples, log_pdf, dimension):
-    parameters = unpack_dcs_matrix_parameters(theta, dimension)
+def dcs_matrix_reverse_kl(theta, samples, log_pdf, dimension, *, beta=2.0):
+    parameters = unpack_dcs_matrix_parameters(theta, dimension, beta=beta)
     x, log_jacobian = dcs_matrix_map(samples, parameters, xp=jnp)
     return -jnp.mean(jax.vmap(log_pdf)(x) + log_jacobian)
 
@@ -330,17 +349,17 @@ def adam_update(theta, gradient, m, v, step, learning_rate):
 
 
 def _numpy_parameters(parameters):
-    return {k: float(v) if k == 'radius' else np.asarray(v) for k, v in parameters.items()}
+    return {k: float(v) if k in ('radius', 'beta') else np.asarray(v) for k, v in parameters.items()}
 
 
 def _train_vi(theta0, dimension, objective, sample, *, seed, steps, batch_size,
-              learning_rates, change_after, average_last, holdout_size, chunk_size):
+              learning_rates, change_after, average_last, holdout_size, chunk_size, rate_multipliers=1.):
     """Run Adam and holdout selection; each caller supplies its own numerical objective."""
     _validate_vi_settings(dimension, steps, batch_size, average_last,
                           holdout_size, chunk_size, learning_rates, change_after)
     history = _optimize(theta0, objective, sample, seed=seed, steps=steps,
                         batch_size=batch_size, learning_rates=learning_rates,
-                        change_after=change_after, chunk_size=chunk_size)
+                        change_after=change_after, chunk_size=chunk_size, rate_multipliers=rate_multipliers)
     theta, selection = _select_candidate(theta0, history, objective, sample,
                                          seed, average_last, holdout_size)
     info = dict(dimension=dimension, seed=seed, steps=steps,
@@ -366,7 +385,7 @@ def _validate_vi_settings(dimension, steps, batch_size, average_last,
 
 
 def _optimize(theta0, objective, sample, *, seed, steps, batch_size,
-              learning_rates, change_after, chunk_size):
+              learning_rates, change_after, chunk_size, rate_multipliers=1.):
     """Run Adam in compiled chunks and collect finite losses and iterates."""
     value_and_grad = jax.value_and_grad(objective)
 
@@ -375,7 +394,7 @@ def _optimize(theta0, objective, sample, *, seed, steps, batch_size,
         key, subkey = jax.random.split(key)
         value, gradient = value_and_grad(theta, sample(subkey, batch_size))
         rate = learning_rates[0] * jnp.where(k < change_after, 1., learning_rates[1] / learning_rates[0])
-        theta, m, v = adam_update(theta, gradient, m, v, k + 1, rate)
+        theta, m, v = adam_update(theta, gradient, m, v, k + 1, rate * rate_multipliers)
         return (theta, m, v, key), (value, theta)
 
     run_chunk = jax.jit(lambda state, ks: jax.lax.scan(update, state, ks))

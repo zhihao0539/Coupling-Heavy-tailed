@@ -4,7 +4,7 @@ import numpy as np
 METHODS = ('euclidean', 'stereographic', 'scs', 'dcs')
 
 
-def default_parameters(dimension, method, radius=1.0):
+def default_parameters(dimension, method, radius=1.0, *, beta=2.0):
     if method not in METHODS or dimension < 1:
         raise ValueError('Choose a supported method and a positive dimension.')
     parameters = {'mu': np.zeros(dimension)}
@@ -17,6 +17,8 @@ def default_parameters(dimension, method, radius=1.0):
         parameters['radius'] = float(radius)
     if method == 'dcs':
         parameters['delta'] = np.zeros(dimension)
+        validate_dcs_beta(beta)
+        parameters['beta'] = float(beta)
     return parameters
 
 
@@ -37,6 +39,13 @@ def _validate_matrix(scale, dimension):
 def _validate_radius(radius):
     if not np.isfinite(radius) or radius <= 0:
         raise ValueError('radius must be finite and positive.')
+
+
+def validate_dcs_beta(beta):
+    """The radial DCS exponent is a fixed positive scalar, independent of dimension."""
+    value = np.asarray(beta)
+    if value.ndim != 0 or not np.isfinite(value) or value <= 0:
+        raise ValueError('DCS beta must be a finite positive scalar.')
 
 
 def _validate_offset(offset, dimension, limit, name):
@@ -74,6 +83,7 @@ def validate_scs_parameters(parameters, dimension, latitude=1.1):
 def validate_dcs_parameters(parameters, dimension):
     """Check a scalar-radius Mobius DCS map."""
     _validate_location(parameters['mu'], dimension)
+    validate_dcs_beta(parameters.get('beta', 2.0))
     if 'preconditioning_matrix' in parameters:
         raise ValueError('Mobius DCS uses radius and delta; use the matrix validator for a matrix map.')
     _validate_radius(parameters.get('radius', np.nan))
@@ -83,6 +93,7 @@ def validate_dcs_parameters(parameters, dimension):
 def validate_dcs_matrix_parameters(parameters, dimension):
     """Check a DCS matrix radial map, which has no scalar radius or Mobius offset."""
     _validate_location(parameters['mu'], dimension)
+    validate_dcs_beta(parameters.get('beta', 2.0))
     if 'radius' in parameters or 'delta' in parameters:
         raise ValueError('Matrix DCS uses preconditioning_matrix without radius or delta.')
     _validate_matrix(parameters['preconditioning_matrix'], dimension)
@@ -168,7 +179,7 @@ def mobius(s, delta, xp=np):
 
 
 def dcs_mobius_map(s, parameters, xp=np):
-    """Unit ball -> R^d using the scalar-radius Mobius DCS map."""
+    """Mobius ball automorphism followed by the radial map with fixed beta."""
     mu = parameters['mu']
     d = mu.shape[-1]
     norm2 = xp.sum(s * s, axis=-1)
@@ -176,33 +187,64 @@ def dcs_mobius_map(s, parameters, xp=np):
     delta2 = xp.sum(delta * delta)
     denominator = 1 + 2 * xp.sum(s * delta, axis=-1) + delta2 * norm2
     gap = (1 - delta2) * (1 - norm2) / denominator
-    x = mu + radius * mobius(s, delta, xp) / xp.sqrt(gap[..., None])
-    log_jacobian = d * xp.log(radius) + d * xp.log1p(-delta2) - d * xp.log(denominator) - (1 + d / 2) * xp.log(gap)
+    beta = parameters.get('beta', 2.0)
+    transformed = mobius(s, delta, xp)
+    # Use 1-||mobius(s)||^2 directly: recomputing its norm can round to one.
+    safe_gap = xp.where(gap < 1, gap, 0.5)
+    log_gap = xp.log(-xp.expm1((beta / 2) * xp.log1p(-safe_gap)))
+    log_gap = xp.where(gap < 1, log_gap, 0.0)
+    x = mu + radius * transformed * xp.exp(-log_gap[..., None] / beta)
+    log_jacobian = (d * xp.log(radius) + d * xp.log1p(-delta2)
+                    - d * xp.log(denominator) - (1 + d / beta) * log_gap)
     return x, log_jacobian
 
 
 def dcs_matrix_map(s, parameters, xp=np):
-    """Unit ball -> R^d using the matrix radial DCS map."""
+    """x = mu + L s / (1 - ||s||**beta)**(1/beta), including log Jacobian."""
     mu = parameters['mu']
     d = mu.shape[-1]
     norm2 = xp.sum(s * s, axis=-1)
     scale = parameters['preconditioning_matrix']
-    radial = s / xp.sqrt((1 - norm2)[..., None])
+    beta = parameters.get('beta', 2.0)
+    log_gap = dcs_log_radial_gap(norm2, beta, xp)
+    radial = s * xp.exp(-log_gap[..., None] / beta)
     x = mu + xp.matmul(radial, xp.swapaxes(scale, -1, -2))
     log_jacobian = (xp.sum(xp.log(xp.diag(scale)))
-                    - (1 + d / 2) * xp.log1p(-norm2))
+                    - (1 + d / beta) * log_gap)
     return x, log_jacobian
 
 
 def dcs_mobius_inverse(x, parameters, xp=np):
     u = (x - parameters['mu']) / parameters['radius']
-    return mobius(u / xp.sqrt(1 + xp.sum(u * u, axis=-1, keepdims=True)), -parameters['delta'], xp)
+    return mobius(dcs_radial_inverse(u, parameters.get('beta', 2.0), xp),
+                  -parameters['delta'], xp)
 
 
 def dcs_matrix_inverse(x, parameters, xp=np):
     u = xp.linalg.solve(parameters['preconditioning_matrix'],
                         (x - parameters['mu'])[..., None])[..., 0]
-    return u / xp.sqrt(1 + xp.sum(u * u, axis=-1, keepdims=True))
+    return dcs_radial_inverse(u, parameters.get('beta', 2.0), xp)
+
+
+def dcs_log_radial_gap(norm2, beta, xp=np):
+    """Stable log(1 - r**beta) for squared radii strictly below one."""
+    # Keep both branches finite at the origin, including under JAX autodiff.
+    safe_norm2 = xp.where(norm2 > 0, norm2, 0.5)
+    log_gap = xp.log(-xp.expm1((beta / 2) * xp.log(safe_norm2)))
+    return xp.where(norm2 > 0, log_gap, 0.0)
+
+
+def dcs_radial_inverse(u, beta=2.0, xp=np):
+    """R^d -> B(1), before undoing an optional Mobius automorphism."""
+    # Scaling before taking a norm avoids overflow for large Euclidean inputs.
+    largest = xp.max(xp.abs(u), axis=-1, keepdims=True)
+    safe_largest = xp.where(largest > 0, largest, 1.0)
+    scaled_norm2 = xp.sum((u / safe_largest)**2, axis=-1, keepdims=True)
+    safe_norm2 = xp.where(scaled_norm2 > 0, scaled_norm2, 1.0)
+    log_radius = xp.log(safe_largest) + 0.5 * xp.log(safe_norm2)
+    log_denominator = xp.logaddexp(0.0, beta * log_radius) / beta
+    log_denominator = xp.where(largest > 0, log_denominator, 0.0)
+    return u * xp.exp(-log_denominator)
 
 
 def dcs_map(s, parameters, xp=np):

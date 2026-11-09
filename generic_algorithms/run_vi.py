@@ -10,7 +10,7 @@ from .transformations import (
 )
 
 
-def run_stereographic_vi(log_pdf, dimension, *, mu, preconditioning_matrix,
+def run_stereographic_vi(log_pdf, dimension, *, mu, preconditioning_matrix, tune=None,
         output_json=None, label='stereographic', target_info=None,
         seed=0, steps=4000, batch_size=2048,
         learning_rates=(.01, .002), change_after=3000,
@@ -20,7 +20,7 @@ def run_stereographic_vi(log_pdf, dimension, *, mu, preconditioning_matrix,
 
     print(f'Fitting the {label.upper()} map by VI', flush=True)
     result = fit_stereographic_vi(log_pdf, dimension,
-        mu=mu, preconditioning_matrix=preconditioning_matrix,
+        mu=mu, preconditioning_matrix=preconditioning_matrix, tune=tune,
         seed=seed, steps=steps, batch_size=batch_size, learning_rates=learning_rates,
         change_after=change_after, average_last=average_last,
         holdout_size=holdout_size, chunk_size=chunk_size)
@@ -29,7 +29,7 @@ def run_stereographic_vi(log_pdf, dimension, *, mu, preconditioning_matrix,
 
 
 def run_scs_vi(log_pdf, dimension, *, mu, preconditioning_matrix,
-        horizontal_observer, latitude=1.1,
+        horizontal_observer, latitude=1.1, tune=None,
         output_json=None, label='scs', target_info=None,
         seed=0, steps=4000, batch_size=2048,
         learning_rates=(.01, .002), change_after=3000,
@@ -40,7 +40,7 @@ def run_scs_vi(log_pdf, dimension, *, mu, preconditioning_matrix,
     print(f'Fitting the {label.upper()} map by VI', flush=True)
     result = fit_scs_vi(log_pdf, dimension,
         mu=mu, preconditioning_matrix=preconditioning_matrix,
-        horizontal_observer=horizontal_observer, latitude=latitude,
+        horizontal_observer=horizontal_observer, latitude=latitude, tune=tune,
         seed=seed, steps=steps, batch_size=batch_size, learning_rates=learning_rates,
         change_after=change_after, average_last=average_last,
         holdout_size=holdout_size, chunk_size=chunk_size)
@@ -49,7 +49,7 @@ def run_scs_vi(log_pdf, dimension, *, mu, preconditioning_matrix,
     return _finish_fit(result, initial, label, output_json, target_info)
 
 
-def run_dcs_vi(log_pdf, dimension, *, mu, radius, delta,
+def run_dcs_vi(log_pdf, dimension, *, mu, radius, delta, tune=None,
         output_json=None, label='dcs', target_info=None,
         seed=0, steps=4000, batch_size=2048,
         learning_rates=(.01, .002), change_after=3000,
@@ -59,7 +59,7 @@ def run_dcs_vi(log_pdf, dimension, *, mu, radius, delta,
 
     print(f'Fitting the {label.upper()} map by VI', flush=True)
     result = fit_dcs_vi(log_pdf, dimension,
-        mu=mu, radius=radius, delta=delta,
+        mu=mu, radius=radius, delta=delta, tune=tune,
         seed=seed, steps=steps, batch_size=batch_size, learning_rates=learning_rates,
         change_after=change_after, average_last=average_last,
         holdout_size=holdout_size, chunk_size=chunk_size)
@@ -67,7 +67,7 @@ def run_dcs_vi(log_pdf, dimension, *, mu, radius, delta,
     return _finish_fit(result, initial, label, output_json, target_info)
 
 
-def run_dcs_matrix_vi(log_pdf, dimension, *, mu, preconditioning_matrix,
+def run_dcs_matrix_vi(log_pdf, dimension, *, mu, preconditioning_matrix, tune=None,
         output_json=None, label='dcs', target_info=None,
         seed=0, steps=4000, batch_size=2048,
         learning_rates=(.01, .002), change_after=3000,
@@ -77,7 +77,7 @@ def run_dcs_matrix_vi(log_pdf, dimension, *, mu, preconditioning_matrix,
 
     print(f'Fitting the {label.upper()} map by VI', flush=True)
     result = fit_dcs_matrix_vi(log_pdf, dimension,
-        mu=mu, preconditioning_matrix=preconditioning_matrix,
+        mu=mu, preconditioning_matrix=preconditioning_matrix, tune=tune,
         seed=seed, steps=steps, batch_size=batch_size, learning_rates=learning_rates,
         change_after=change_after, average_last=average_last,
         holdout_size=holdout_size, chunk_size=chunk_size)

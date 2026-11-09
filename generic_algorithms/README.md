@@ -199,9 +199,25 @@ The VI functions select their reference distributions and transformations direct
 | `fit_dcs_matrix_vi` | `run_dcs_matrix_vi` | Unit ball B(1) | `mu`, `preconditioning_matrix` |
 
 All four start with `(log_pdf, dimension)` and take the initial map fields as
-keyword arguments. There is no `method`, `method_settings`, `initial_parameters`,
-or matrix/scalar switch. DCS ball walk and Gaussian random walk can use the same
-VI fit: the reference distribution is the unit ball in both cases. DCS fixes beta=2.
+keyword arguments. Both the `fit_*_vi` functions and `run_*_vi` runners accept
+`tune` to choose the fields Adam updates.
+
+| Method | Fields available to `tune` |
+|---|---|
+| Stereographic | `mu`, `preconditioning_matrix` |
+| SCS | `mu`, `preconditioning_matrix`, `horizontal_observer` |
+| Mobius DCS | `mu`, `radius`, `delta` |
+| Matrix DCS | `mu`, `preconditioning_matrix` |
+
+Omitting `tune` or passing `None` fits all the fields listed for that method.
+Pass a list or tuple of names to choose a subset, or one name such as
+`tune="preconditioning_matrix"`. A vector or matrix is selected as a whole.
+Omitted fields keep their supplied physical values during optimization,
+holdout selection, and saving. With `tune=()`, the supplied map is evaluated
+throughout the requested steps. Duplicate and unsupported names raise an error.
+
+DCS ball walk and Gaussian random walk can share a VI fit since both use the
+uniform ball reference. DCS uses beta=2. SCS latitude sets the cap and is fixed.
 
 The reference samplers are separately callable from `generic_algorithms.vi`:
 `sample_uniform_sphere(key, n, dimension)`,
@@ -211,7 +227,7 @@ sphere to obtain points uniform on the bright cap. DCS samples a uniform
 direction with radius `U**(1/dimension)` to obtain points uniform in volume.
 References are independent of the fitted parameters; the SCS latitude is fixed.
 
-For example, fit and save an SCS map with explicit initial values:
+For example, fix the SCS location at zero and fit its matrix and observer.
 
 ```python
 import numpy as np
@@ -221,12 +237,13 @@ parameters, info, history = run_scs_vi(
     log_pdf_jax, dimension=d,
     mu=np.zeros(d), preconditioning_matrix=np.eye(d),
     horizontal_observer=np.zeros(d), latitude=1.1,
+    tune=("preconditioning_matrix", "horizontal_observer"),
     seed=42, steps=4000, batch_size=2048,
     output_json="fitted_parameters.json",
 )
 ```
 
-To fit a matrix DCS map instead:
+For a matrix DCS fit with the location fixed, select the matrix.
 
 ```python
 from generic_algorithms import run_dcs_matrix_vi
@@ -234,6 +251,7 @@ from generic_algorithms import run_dcs_matrix_vi
 parameters, info, history = run_dcs_matrix_vi(
     log_pdf_jax, dimension=d,
     mu=np.zeros(d), preconditioning_matrix=np.sqrt(2.) * np.eye(d),
+    tune="preconditioning_matrix",
     seed=43, output_json="fitted_parameters.json",
 )
 ```
@@ -290,6 +308,8 @@ map has its own objective function: `stereographic_reverse_kl`, `scs_reverse_kl`
 `(theta, samples, log_pdf, dimension)`; SCS additionally takes `latitude`.
 They call the corresponding transformations directly. Adam, optimization chunks,
 and holdout selection are shared numerical code with no method selection.
+Selective fits reconstruct the same map from the free coordinates and the
+supplied fixed fields. Only the free coordinates receive Adam updates.
 
 A differentiable target is not sufficient to guarantee finite reverse KL. Choose
 a reference/map family with suitable tails for the target. Raw objectives from
@@ -306,10 +326,15 @@ optimum and does not tune an MCMC proposal step size.
 `history["loss"][k]` is the loss before update k+1; `history["theta"][k]` is
 the parameter vector after that update. Losses can be negative and need not
 decrease at each update. Every history contains `steps` losses and parameter
-vectors. Their lengths are d+d(d+1)/2 for stereographic or matrix DCS,
-2d+d(d+1)/2 for SCS, and 2d+1 for Mobius DCS.
+vectors. With the default full fit, their lengths are d+d(d+1)/2 for
+stereographic or matrix DCS, 2d+d(d+1)/2 for SCS, and 2d+1 for Mobius DCS.
+For a selected subset, `theta` contains only that subset in the field order
+shown in the table. `info["theta_slices"]` maps each selected field to its
+start and stop columns. `info["tuned_parameters"]` and
+`info["fixed_parameters"]` record the chosen fields. For example, a matrix-only
+fit has d(d+1)/2 columns and a location-only fit has d columns.
 
-Use the matching conversion functions when inspecting a parameter history:
+For a full fit, use the matching conversion function to inspect its history.
 
 ```python
 from generic_algorithms.vi import unpack_scs_parameters

@@ -14,11 +14,11 @@ from .transformations import (
 )
 
 
-def fit_stereographic_vi(log_pdf, dimension, *, mu, preconditioning_matrix,
+def fit_stereographic_vi(log_pdf, dimension, *, mu, preconditioning_matrix, tune=None,
         seed=0, steps=4000, batch_size=2048,
         learning_rates=(.01, .002), change_after=3000,
         average_last=500, holdout_size=20000, chunk_size=250):
-    """Fit the stereographic map using uniform sphere reference points."""
+    """Fit selected location/matrix fields using uniform sphere reference points."""
     initial = _matrix_parameters(mu, preconditioning_matrix)
     validate_stereographic_parameters(initial, dimension)
     theta0 = pack_stereographic_parameters(mu, preconditioning_matrix)
@@ -26,14 +26,15 @@ def fit_stereographic_vi(log_pdf, dimension, *, mu, preconditioning_matrix,
     def sample(key, n):
         return sample_uniform_sphere(key, n, dimension)
 
-    def objective(theta, samples):
-        return stereographic_reverse_kl(theta, samples, log_pdf, dimension)
+    def unpack(theta):
+        return unpack_stereographic_parameters(theta, dimension)
 
-    theta, info, history = _train_vi(theta0, dimension, objective, sample,
+    parameters, info, history = _fit_selected_map(
+        log_pdf, dimension, initial, theta0, _matrix_field_sizes(dimension),
+        tune, unpack, stereographic_map, sample,
         seed=seed, steps=steps, batch_size=batch_size, learning_rates=learning_rates,
         change_after=change_after, average_last=average_last,
         holdout_size=holdout_size, chunk_size=chunk_size)
-    parameters = _numpy_parameters(unpack_stereographic_parameters(jnp.asarray(theta), dimension))
     validate_stereographic_parameters(parameters, dimension)
     info = dict(method='stereographic', **info)
     info.update({'scale_parameterization': 'full_cholesky'})
@@ -41,11 +42,11 @@ def fit_stereographic_vi(log_pdf, dimension, *, mu, preconditioning_matrix,
 
 
 def fit_scs_vi(log_pdf, dimension, *, mu, preconditioning_matrix,
-        horizontal_observer, latitude=1.1,
+        horizontal_observer, latitude=1.1, tune=None,
         seed=0, steps=4000, batch_size=2048,
         learning_rates=(.01, .002), change_after=3000,
         average_last=500, holdout_size=20000, chunk_size=250):
-    """Fit the SCS map using uniform bright-cap reference points."""
+    """Fit selected SCS fields using a uniform cap at the supplied latitude."""
     initial = _matrix_parameters(mu, preconditioning_matrix)
     initial['horizontal_observer'] = np.asarray(horizontal_observer)
     validate_scs_parameters(initial, dimension, latitude)
@@ -54,25 +55,29 @@ def fit_scs_vi(log_pdf, dimension, *, mu, preconditioning_matrix,
     def sample(key, n):
         return sample_uniform_scs_cap(key, n, dimension, latitude)
 
-    def objective(theta, samples):
-        return scs_reverse_kl(theta, samples, log_pdf, dimension, latitude)
+    def unpack(theta):
+        return unpack_scs_parameters(theta, dimension, latitude)
 
-    theta, info, history = _train_vi(theta0, dimension, objective, sample,
+    def transform(points, parameters, xp):
+        return scs_map(points, parameters, latitude, xp=xp)
+
+    sizes = dict(_matrix_field_sizes(dimension), horizontal_observer=dimension)
+    parameters, info, history = _fit_selected_map(
+        log_pdf, dimension, initial, theta0, sizes, tune, unpack, transform, sample,
         seed=seed, steps=steps, batch_size=batch_size, learning_rates=learning_rates,
         change_after=change_after, average_last=average_last,
         holdout_size=holdout_size, chunk_size=chunk_size)
-    parameters = _numpy_parameters(unpack_scs_parameters(jnp.asarray(theta), dimension, latitude))
     validate_scs_parameters(parameters, dimension, latitude)
     info = dict(method='scs', **info)
     info.update({'scale_parameterization': 'full_cholesky', 'latitude': latitude})
     return parameters, info, history
 
 
-def fit_dcs_vi(log_pdf, dimension, *, mu, radius, delta,
+def fit_dcs_vi(log_pdf, dimension, *, mu, radius, delta, tune=None,
         seed=0, steps=4000, batch_size=2048,
         learning_rates=(.01, .002), change_after=3000,
         average_last=500, holdout_size=20000, chunk_size=250):
-    """Fit the Mobius DCS map using uniform unit-ball reference points."""
+    """Fit selected Mobius DCS fields using uniform unit-ball reference points."""
     initial = dict(mu=np.asarray(mu), radius=radius, delta=np.asarray(delta))
     validate_dcs_parameters(initial, dimension)
     theta0 = pack_dcs_parameters(mu, radius, delta)
@@ -80,25 +85,26 @@ def fit_dcs_vi(log_pdf, dimension, *, mu, radius, delta,
     def sample(key, n):
         return sample_uniform_ball(key, n, dimension)
 
-    def objective(theta, samples):
-        return dcs_reverse_kl(theta, samples, log_pdf, dimension)
+    def unpack(theta):
+        return unpack_dcs_parameters(theta, dimension)
 
-    theta, info, history = _train_vi(theta0, dimension, objective, sample,
+    sizes = dict(mu=dimension, radius=1, delta=dimension)
+    parameters, info, history = _fit_selected_map(
+        log_pdf, dimension, initial, theta0, sizes, tune, unpack, dcs_mobius_map, sample,
         seed=seed, steps=steps, batch_size=batch_size, learning_rates=learning_rates,
         change_after=change_after, average_last=average_last,
         holdout_size=holdout_size, chunk_size=chunk_size)
-    parameters = _numpy_parameters(unpack_dcs_parameters(jnp.asarray(theta), dimension))
     validate_dcs_parameters(parameters, dimension)
     info = dict(method='dcs', **info)
     info.update({'beta': 2})
     return parameters, info, history
 
 
-def fit_dcs_matrix_vi(log_pdf, dimension, *, mu, preconditioning_matrix,
+def fit_dcs_matrix_vi(log_pdf, dimension, *, mu, preconditioning_matrix, tune=None,
         seed=0, steps=4000, batch_size=2048,
         learning_rates=(.01, .002), change_after=3000,
         average_last=500, holdout_size=20000, chunk_size=250):
-    """Fit the matrix DCS map using uniform unit-ball reference points."""
+    """Fit selected matrix DCS fields using uniform unit-ball reference points."""
     initial = _matrix_parameters(mu, preconditioning_matrix)
     validate_dcs_matrix_parameters(initial, dimension)
     theta0 = pack_dcs_matrix_parameters(mu, preconditioning_matrix)
@@ -106,18 +112,69 @@ def fit_dcs_matrix_vi(log_pdf, dimension, *, mu, preconditioning_matrix,
     def sample(key, n):
         return sample_uniform_ball(key, n, dimension)
 
-    def objective(theta, samples):
-        return dcs_matrix_reverse_kl(theta, samples, log_pdf, dimension)
+    def unpack(theta):
+        return unpack_dcs_matrix_parameters(theta, dimension)
 
-    theta, info, history = _train_vi(theta0, dimension, objective, sample,
+    parameters, info, history = _fit_selected_map(
+        log_pdf, dimension, initial, theta0, _matrix_field_sizes(dimension),
+        tune, unpack, dcs_matrix_map, sample,
         seed=seed, steps=steps, batch_size=batch_size, learning_rates=learning_rates,
         change_after=change_after, average_last=average_last,
         holdout_size=holdout_size, chunk_size=chunk_size)
-    parameters = _numpy_parameters(unpack_dcs_matrix_parameters(jnp.asarray(theta), dimension))
     validate_dcs_matrix_parameters(parameters, dimension)
     info = dict(method='dcs', **info)
     info.update({'beta': 2, 'scale_parameterization': 'full_cholesky', 'ball_automorphism': 'appendix_b_affine'})
     return parameters, info, history
+
+
+def _matrix_field_sizes(dimension):
+    return dict(mu=dimension, preconditioning_matrix=dimension * (dimension + 1) // 2)
+
+
+def _selected_coordinates(theta0, initial, sizes, tune, unpack):
+    """Optimize a subset of the existing packed vector and retain exact fixed fields."""
+    if tune is None:
+        names = list(sizes)
+    elif isinstance(tune, str):
+        names = [tune]
+    else:
+        names = list(tune)
+    if any(not isinstance(name, str) for name in names):
+        raise ValueError('tune must contain parameter names.')
+    if len(set(names)) != len(names) or set(names).difference(sizes):
+        raise ValueError(f'tune must contain unique names from {tuple(sizes)}; got {names}.')
+    indices, slices = [], {}
+    full_start = free_start = 0
+    for name, size in sizes.items():
+        if name in names:
+            indices.extend(range(full_start, full_start + size))
+            slices[name] = (free_start, free_start + size)
+            free_start += size
+        full_start += size
+    indices = jnp.asarray(indices, dtype=jnp.int32)
+    frozen = {name: jnp.asarray(value, dtype=jnp.float64)
+              for name, value in initial.items() if name not in slices}
+
+    def decode(theta):
+        parameters = unpack(theta0.at[indices].set(theta))
+        parameters.update(frozen)
+        return parameters
+
+    return theta0[indices], decode, slices
+
+
+def _fit_selected_map(log_pdf, dimension, initial, theta0, sizes, tune, unpack, transform, sample, **settings):
+    theta0, decode, slices = _selected_coordinates(theta0, initial, sizes, tune, unpack)
+
+    def objective(theta, samples):
+        x, log_jacobian = transform(samples, decode(theta), xp=jnp)
+        return -jnp.mean(jax.vmap(log_pdf)(x) + log_jacobian)
+
+    theta, info, history = _train_vi(theta0, dimension, objective, sample, **settings)
+    info.update(tuned_parameters=list(slices),
+                fixed_parameters=[name for name in initial if name not in slices],
+                theta_slices=slices)
+    return _numpy_parameters(decode(jnp.asarray(theta))), info, history
 
 
 def _matrix_parameters(mu, preconditioning_matrix):

@@ -13,7 +13,7 @@ uniform sphere draws, and DCS uses uniform unit-ball draws.
 | Method | VI parameters | Initial values |
 |---|---|---|
 | Stereographic | mu, full lower-triangular matrix L | mu=0, L=sqrt(d) I |
-| Matrix DCS ball walk | mu, full lower-triangular matrix L, beta | mu=0, L=sqrt(d) I, beta=max(4, pi sqrt(d/6)) |
+| Matrix DCS ball walk | mu, full lower-triangular matrix L, beta | mu=0, L=sqrt(d) I, beta=2 |
 | Euclidean Gaussian RWM | None | Original coordinates |
 
 All listed VI parameters are free. Stereographic uses 6,000 Adam updates;

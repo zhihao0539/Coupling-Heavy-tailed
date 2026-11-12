@@ -1,0 +1,2 @@
+method,dimension,observable,n_replicates,mean_v,mcse,ci95_lower,ci95_upper,mean_varh,mean_cost,mean_cost_umcmc,mean_cost_poisson,estimator_inefficiency,lag,k,ell,R,cutoff,step_size,beta,implementation
+dcs,50,x1,100,149.32902519646717,12.61749930268147,124.5987265632115,174.05932382972284,0.9778970400354707,18340.09,4934.33,13405.76,291976596.2015068,440,440,2200,10,1000000,0.32007716108024103,15.150319742346651,stored_signed_measure

@@ -1,0 +1,193 @@
+{
+  "stereographic": {
+    "mu": [
+      -0.0009867536282982144,
+      -0.0008469395828945092,
+      -0.0011021980189037902,
+      -0.0012822727425395462,
+      -0.0013715256613678326
+    ],
+    "preconditioning_matrix": [
+      [
+        1.7303220973103834,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        1.5566520166209137,
+        0.7555229369734136,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        1.4009922977039702,
+        0.6798581278746332,
+        0.7542276237397495,
+        0.0,
+        0.0
+      ],
+      [
+        1.261481463279471,
+        0.6120268489990995,
+        0.6786341929273295,
+        0.7537212422239857,
+        0.0
+      ],
+      [
+        1.1345897333758546,
+        0.5514618228910146,
+        0.61098853980015,
+        0.6789417290583695,
+        0.7547671571855502
+      ]
+    ]
+  },
+  "dcs": {
+    "mu": [
+      -4.6646675657563725e-05,
+      0.0006195343029389073,
+      0.0012114153297985504,
+      0.0004568690037375724,
+      0.0003281885894941044
+    ],
+    "preconditioning_matrix": [
+      [
+        2.219483061565628,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        1.996131929482529,
+        0.9676323401914504,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        1.7963622017656529,
+        0.8712264901738123,
+        0.9672190793181358,
+        0.0,
+        0.0
+      ],
+      [
+        1.6173562879507977,
+        0.7844567610555672,
+        0.8702773359297196,
+        0.9677950726483593,
+        0.0
+      ],
+      [
+        1.4550191795169856,
+        0.7041663580583898,
+        0.7833150942084998,
+        0.8690004213363857,
+        0.9675976870921856
+      ]
+    ],
+    "beta": 6.83633639068047
+  },
+  "vi_info": {
+    "stereographic": {
+      "dimension": 5,
+      "seed": 20266113,
+      "steps": 6000,
+      "batch_size": 2048,
+      "learning_rates": [
+        0.01,
+        0.002
+      ],
+      "change_after": 4500,
+      "average_last": 500,
+      "holdout_size": 50000,
+      "holdout_seed": 20266613,
+      "initial_holdout_loss": 29.258504419590004,
+      "candidate_holdout_losses": [
+        3.8162217558656835,
+        3.8152844900487226
+      ],
+      "chosen_candidate": "last_500_parameter_average",
+      "tuned_parameters": [
+        "mu",
+        "preconditioning_matrix"
+      ],
+      "fixed_parameters": [],
+      "theta_slices": {
+        "mu": [
+          0,
+          5
+        ],
+        "preconditioning_matrix": [
+          5,
+          20
+        ]
+      },
+      "method": "stereographic",
+      "scale_parameterization": "full_cholesky",
+      "initial_scale_geometric_mean": 2.23606797749979,
+      "target_info": {
+        "target": "multivariate_normal_ar1",
+        "dimension": 5,
+        "rho": 0.9
+      }
+    },
+    "dcs": {
+      "dimension": 5,
+      "seed": 20266114,
+      "steps": 16000,
+      "batch_size": 2048,
+      "learning_rates": [
+        0.01,
+        0.002
+      ],
+      "change_after": 12000,
+      "average_last": 500,
+      "holdout_size": 50000,
+      "holdout_seed": 20266614,
+      "initial_holdout_loss": 30.893634231146706,
+      "candidate_holdout_losses": [
+        1.7100266764709826,
+        1.7099477817347002
+      ],
+      "chosen_candidate": "last_500_parameter_average",
+      "tuned_parameters": [
+        "mu",
+        "preconditioning_matrix",
+        "beta"
+      ],
+      "fixed_parameters": [],
+      "theta_slices": {
+        "mu": [
+          0,
+          5
+        ],
+        "preconditioning_matrix": [
+          5,
+          20
+        ],
+        "beta": [
+          20,
+          21
+        ]
+      },
+      "beta_learning_rate_multiplier": 0.1,
+      "method": "dcs",
+      "initial_beta": 4.0,
+      "beta": 6.83633639068047,
+      "scale_parameterization": "full_cholesky",
+      "ball_automorphism": "appendix_b_affine",
+      "initial_scale_geometric_mean": 2.23606797749979,
+      "target_info": {
+        "target": "multivariate_normal_ar1",
+        "dimension": 5,
+        "rho": 0.9
+      },
+      "minimum_training_beta": 4
+    }
+  }
+}

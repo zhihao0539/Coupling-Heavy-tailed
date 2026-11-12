@@ -52,8 +52,8 @@ The experiment checks all saved maps before starting sampling. It requires
 
 ## Coupling experiments and step sizes
 
-The current production settings in `run_experiment.py` are **50 pairs per
-dimension** and a **100,000-update cutoff**, stopping each pair at meeting
+The current production settings in `run_experiment.py` are **1,000 pairs per
+method and dimension** and a **100,000-update cutoff (10^5)**, stopping each pair at meeting
 or the cutoff. All five methods start from the same independent target draws.
 The existing proposal streams are preserved: indices 0, 1, 2, 3, and 4 for
 stereographic, SCS11, SCS19, DCS ball, and Euclidean, respectively.
@@ -62,9 +62,8 @@ The five step-size lists in `run_experiment.py` use the saved fixed-zero VI
 fits. The stereographic step at d=100 is manually set to 0.02; the other
 steps retain their previous calibration values. Dimensions are listed in the
 same order in every array.
-The VI files, proposal streams, target initialization and current production
-budget are unchanged by removing DCS Gaussian random walk. No tuning scripts
-were added to this experiment folder.
+The experiment reads the saved VI fits and uses the proposal streams and
+production budget given above. No tuning scripts were added to this folder.
 
 The target is 23% mean acceptance across pairs stopped at meeting. When the
 sphere-step search did not reach that target, a practical step was selected
@@ -81,6 +80,12 @@ acceptance rather than assuming every method can achieve 23%.
 | 20 | 0.055901699 | 0.4472136 | 0.2236068 | 0.57663684 | 0.79 |
 | 50 | 0.035355339 | 0.56568542 | 0.070710678 | 0.34911279 | 0.46191584 |
 | 100 | 0.02 | 0.4 | 0.025 | 0.24329044 | 0.34930274 |
+
+### Historical calibration
+
+The validation records below used a 10,000,000-update cutoff (10^7).
+They describe earlier calibration, separately from the current production
+runs, which use `MAX_STEPS = 100000` (10^5).
 
 Earlier independent validation acceptance percentages (parentheses give one
 Monte Carlo standard error in percentage points). The current stereographic

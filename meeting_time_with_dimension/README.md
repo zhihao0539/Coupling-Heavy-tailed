@@ -1,50 +1,64 @@
-# Meeting time versus dimension
+# Meeting time versus dimension: current settings
 
-These experiments compare coupling meeting times in dimensions
-1, 2, 5, 10, 20, 50 and 100 using `generic_algorithms`.
+The current production settings below follow the experiment scripts.
+Limits apply to each chain pair, which stops at meeting
+or at its iteration cutoff. The same initial pair is shared across methods.
 
-| Folder | Target | Pairs per method and dimension | Update cutoff | Map parameters |
-|---|---|---:|---:|---|
-| `multivariate_normal` | Standard multivariate normal | 1,000 | 1,000,000 | Fixed |
-| `multivariate_student_t_2` | Multivariate Student-t, df=2, identity scale | 100 | 10,000,000 | VI |
-| `multivariate_student_t_d+1` | Multivariate Student-t, df=d+1, identity scale | 1,000 | 1,000,000 | VI |
+| Experiment | Dimensions | Pairs per method and dimension | Iteration cutoff |
+|---|---|---:|---:|
+| [Student-t with df=2](multivariate_student_t_2/) | 1, 2, 5, 10, 20, 50, 100 | 1,000 | 100,000 (10^5) |
+| [Student-t with df=d+1](multivariate_student_t_d+1/) | 1, 2, 5, 10, 20, 50, 100 | 1,000 | 1,000,000 (10^6) |
+| [AR(1) Gaussian](multivariate_normal_ar1/) | 5, 10, 20, 50, 100 | 100 | 1,000,000 (10^6) |
 
-Every method uses the same independent pair of target draws for each
-replicate. Proposal random streams are separate for each method. For the
-Student-t targets, one chi-square variable scales the whole vector; the
-coordinates are not independent Student-t draws.
+## Targets, methods, and initialization
 
-All comparisons include stereographic, SCS at latitude 1.1, Euclidean,
-DCS ball walk and DCS Gaussian random walk. The Student-t experiments also
-include SCS at latitude 1.9. Both DCS proposals share their map: a fixed
-scalar-radius Mobius map for normal, or the saved matrix map for Student-t.
+The Student-t targets have identity scale. Their comparisons use stereographic,
+SCS with latitudes 1.1 and 1.9, Mobius DCS ball walk, and Euclidean random walk.
+The df=2 DCS map fixes beta=2; the df=d+1 DCS map learns beta jointly with
+its radius and Mobius offset. Locations are fixed at zero, and SCS horizontal
+observers are also fixed at zero. Further VI details are in each folder's README.
 
-Install the repository's requirements, then run commands from the repository
-root. For example, to plot the supplied Student-t df=2 results:
+The AR(1) target is N(0,C), with C[i,j] = 0.9**abs(i-j). Its comparison uses
+stereographic, matrix DCS ball walk, and Euclidean random walk. Reverse-KL VI
+tunes mu and the full matrix for both transformed methods, and beta for DCS.
 
-```bash
-python meeting_time_with_dimension/multivariate_student_t_2/plot_results.py
+All three meeting-time comparisons initialize their chains independently
+from the corresponding target distribution.
+
+## AR(1) Gaussian UPAVE at d=50
+
+The separate asymptotic-variance experiment uses h(x)=x_1 and starts its lagged
+couplings from N(0,I_50). It runs 100 independent UPAVE replicates per method,
+with 50 independent lag-one pilots. L=k is the ceiling of the pilots' 95th
+meeting-time percentile, ell=5L, and R=10 uniform atoms are used per signed
+measure. The Poisson reference is zero in original Euclidean coordinates for
+all methods. The iteration cutoff for each required coupling is 1,000,000.
+
+## Running the experiments
+
+Run `python run_all.py` from an experiment folder to fit its configured maps,
+run the couplings, and plot. The stages can also be run separately with
+`run_vi.py`, `run_experiment.py`, and `plot_results.py`. For example, from the
+repository root:
+
+```sh
+python meeting_time_with_dimension/multivariate_student_t_2/run_all.py
 ```
 
-To rerun with the supplied VI fits, run that folder's `run_experiment.py`
-followed by `plot_results.py`. To refit all four Student-t maps first, run
-`run_vi.py`, or use `run_all.py` to fit, simulate and plot. The normal
-experiment uses fixed maps, so its `run_all.py` only simulates and plots.
-Full runs may be slow, particularly for censored meeting times.
+Proposal steps are supplied in each `run_experiment.py`. VI settings are in
+`run_vi.py`; fitting new maps can require recalibrating the proposal steps.
 
-Set `N_REP`, `MAX_STEPS` and the method-specific step-size lists in
-`run_experiment.py`. Student-t VI settings are in `run_vi.py`; normal map
-settings are in `run_experiment.py`. Step sizes are used as supplied and
-are not automatically tuned.
+## Reading saved results and calibration notes
 
-Each folder keeps its own `results/`: combined and per-dimension CSVs,
-summary tables, per-dimension meeting-time plots and the comparison across
-dimensions. Student-t folders also save their fitted maps. Running the
-scripts replaces the corresponding outputs.
+`N_REP` and `MAX_STEPS` in each `run_experiment.py` control future coupling
+runs. `MAX_ITERATIONS` controls the separate UPAVE cutoff. Saved CSV rows
+record their actual stopping limits and proposal steps. The larger cutoffs
+quoted in historical calibration notes describe those earlier pilots and
+validation runs. They do not override the current production budgets above.
 
-Meeting times of `-1` indicate pairs that did not meet before the cutoff.
-Tables report the restricted mean, assigning the cutoff to those pairs.
-The unrestricted mean is reported only if every pair met. The extra df=2
-panel shows the mean among observed meetings; this conditional mean should
-not be interpreted as the unrestricted mean when some pairs are censored.
-Error bars are one empirical Monte Carlo standard error.
+A meeting time of -1 denotes a pair that did not meet by its saved cutoff.
+Means among met pairs are conditional on meeting before that cutoff.
+They do not estimate the uncensored mean when some pairs have not met.
+Error bars show one empirical Monte Carlo standard error. Saved fits and CSVs
+from an earlier map configuration must be regenerated before plotting the
+current comparison; their recorded settings are preserved.

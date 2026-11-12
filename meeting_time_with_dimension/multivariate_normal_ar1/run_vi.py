@@ -26,7 +26,7 @@ def fit_stereographic(d, seed, path, settings):
 
 
 def fit_dcs(d, seed, path, settings):
-    initial_beta = max(4., np.pi*np.sqrt(d/6))
+    initial_beta = 4
     parameters, info, history = run_dcs_matrix_vi(
         make_log_density(d, jax=True), d, mu=np.zeros(d),
         preconditioning_matrix=np.sqrt(d)*np.eye(d), beta=initial_beta,

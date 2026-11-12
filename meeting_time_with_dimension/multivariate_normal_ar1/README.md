@@ -99,16 +99,21 @@ public generic runner. Seeded replay checks are recorded in execution details.
 ## Unbiased Poisson asymptotic variance at d=50
 
 `run_asymptotic_variance.py` compares v(P,h) for h(x)=x_1 using the
-full reservoir UPAVE estimator, with the existing fits and proposal steps.
+stored-signed-measure UPAVE estimator, with the existing fits and proposal steps.
 No VI or meeting-time experiment is rerun. The lagged couplings start from
 independent N(0,I_50) draws; the target remains the correlated N(0,C) Gaussian.
 
 Each method uses 50 independent lag-one pilots. L=k is the ceiling of
 their empirical 95th percentile, and ell=5L. Production uses 100 independent
-replicates, two independent signed measures per replicate, and R=10 uniform
-reservoir atoms per measure for the Poisson terms. The reference y is zero
+replicates, two independent signed measures per replicate, and R=10 uniformly
+selected atoms per measure for the Poisson terms. The reference y is zero
 in the original Euclidean coordinates. Pilots and production use separate
 random streams; states stay native and h is evaluated in original coordinates.
+
+The runner uses the generic `run_upave` function, with R fixed at 10.
+This was a provisional choice, not a result of inefficiency optimization.
+The numerical results below record the earlier completed run; changing the
+implementation does not regenerate those saved estimates.
 
 | Method | Estimated v(P,h) | MCSE | L=k | ell |
 |---|---:|---:|---:|---:|

@@ -1,4 +1,4 @@
-"""Fit the VI maps, run all six coupling methods, then plot.
+"""Fit the VI maps, run all five coupling methods, then plot.
 
 For existing results only, run plot_results.py instead.
 """

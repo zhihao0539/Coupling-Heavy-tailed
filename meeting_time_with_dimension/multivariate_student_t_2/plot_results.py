@@ -1,4 +1,4 @@
-"""Step 3: summarize and plot the six configured coupling methods."""
+"""Step 3: summarize and plot the five configured coupling methods."""
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -12,11 +12,10 @@ STYLES = {
     "stereographic": ("Stereographic", "tab:blue"),
     "SCS11": ("SCS11", "tab:green"),
     "SCS19": ("SCS19", "tab:red"),
-    "dcs": ("DCS (matrix)", "tab:purple"),
+    "dcs": ("DCS ball walk (Mobius)", "tab:purple"),
     "euclidean": ("Euclidean", "tab:orange"),
-    "dcs_rw": ("DCS-Gaussian random walk (matrix)", "tab:brown"),
 }
-MARKERS = {"stereographic": "o", "SCS11": "^", "SCS19": "s", "dcs": "D", "euclidean": "v", "dcs_rw": "P"}
+MARKERS = {"stereographic": "o", "SCS11": "^", "SCS19": "s", "dcs": "D", "euclidean": "v"}
 
 
 def read_results(root):
@@ -30,13 +29,29 @@ def read_results(root):
 
 def load_results():
     local = read_results(RESULTS)
+    local = local[local.method.isin(STYLES)].copy()
+    if local.empty:
+        raise FileNotFoundError(f"No meeting-time results in {RESULTS}; run run_experiment.py first.")
+    if "mu_fixed" not in local or not local.mu_fixed.eq(True).all():
+        raise ValueError(
+            "Saved results do not use mu=0 for every map. "
+            "Refit if needed (python run_vi.py), then rerun run_experiment.py.")
+    scs_rows = local[local.method.isin(("SCS11", "SCS19"))]
+    fixed_columns = ["scs_mu_fixed", "scs_observer_fixed"]
+    if not set(fixed_columns).issubset(local.columns) or not scs_rows[fixed_columns].eq(True).all().all():
+        raise ValueError(
+            "Saved SCS results do not use the fixed-zero location and observer. "
+            "Refit if needed (python run_vi.py), "
+            "then rerun run_experiment.py.")
+    dcs_rows = local[local.method == "dcs"]
+    if "dcs_map" not in local or not dcs_rows.dcs_map.eq("mobius").all():
+        raise ValueError(
+            "Saved DCS results do not use the Mobius map. "
+            "Refit if needed, then rerun run_experiment.py.")
     frames = []
     for name in STYLES:
         rows = local[local.method == name]
         if rows.empty:
-            if name == "dcs_rw":
-                print("No saved DCS random-walk results yet; plotting the existing methods.")
-                continue
             raise FileNotFoundError(f"No saved results for {name} in {RESULTS}.")
         rows = rows.copy().assign(method=name)
         if "h" not in rows:
@@ -58,14 +73,11 @@ def load_results():
 def summarize(results, horizon=None):
     if results.cutoff.nunique() != 1:
         raise ValueError("The saved runs must use a common cutoff.")
-    cutoff = int(results.cutoff.iloc[0])
-    horizon = cutoff if horizon is None else int(horizon)
-    if not 0 < horizon <= cutoff:
-        raise ValueError("horizon must be positive and no larger than the saved cutoff.")
+    horizon = int(results.cutoff.iloc[0]) if horizon is None else int(horizon)
     summaries = []
     for (d, method), rows in results.groupby(["dimension", "method"], sort=True):
         tau = rows.meeting_time.to_numpy()
-        met = (tau >= 0) & (tau <= horizon)
+        met = tau >= 0
         met_tau = tau[met]
         met_se = met_tau.std(ddof=1)/np.sqrt(len(met_tau)) if len(met_tau) > 1 else np.nan
         restricted = np.where(met, tau, horizon)

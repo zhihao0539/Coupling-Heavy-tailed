@@ -1,4 +1,4 @@
-"""Run the five Student-t couplings using the step sizes from the completed experiment."""
+"""Run five Student-t couplings, using the fitted Mobius map for DCS."""
 from pathlib import Path
 import sys
 from tempfile import TemporaryDirectory
@@ -10,7 +10,7 @@ sys.path.insert(0, str(FOLDER.parents[1]))
 
 from generic_algorithms import (
     load_parameters, run_stereographic_experiment, run_scs_experiment,
-    run_dcs_matrix_ball_experiment, run_euclidean_experiment, combine_results, save_results,
+    run_dcs_ball_experiment, run_euclidean_experiment, combine_results, save_results,
 )
 from target import DIMENSIONS, make_log_density
 
@@ -22,7 +22,9 @@ PROPOSAL_SEED = 42
 PROGRESS_EVERY = 25
 LATITUDES = {"SCS11": 1.1, "SCS19": 1.9}
 
-# h for each method and dimension, taken from the completed experiment.
+# Non-DCS steps retain their completed-experiment calibration.
+# DCS steps are calibrated for the saved Mobius fits: mean per-pair acceptance
+# through meeting or the 1,000,000-step cutoff, targeting 23%. See README.md.
 STEP_SIZES = {
     "stereographic": {
         1: 2.0,
@@ -53,12 +55,12 @@ STEP_SIZES = {
     },
     "dcs": {
         1: 11.416388304026121,
-        2: 3.3941125496954276,
-        5: 1.517893276880822,
-        10: 0.9025447423407345,
-        20: 0.5366563145999494,
+        2: 3.342182444394032,
+        5: 1.5380087076167581,
+        10: 0.8640567412292616,
+        20: 0.5398144466838681,
         50: 0.3250213312648542,
-        100: 0.22008097036912108,
+        100: 0.22534998477066714,
     },
     "euclidean": {
         1: 19.2,
@@ -113,10 +115,19 @@ def run_scs19(d, starts):
         stop_at_meeting=True, progress_every=PROGRESS_EVERY)
 
 
-def run_dcs_ball(d, starts):
+def load_dcs_parameters(d):
     path = RESULTS / f"d_{d:04d}" / "fitted_parameters.json"
     fitted = load_parameters(path, d, ["dcs"])["dcs"]
-    return run_dcs_matrix_ball_experiment(
+    if "radius" not in fitted or "delta" not in fitted:
+        raise ValueError(
+            f"{path} contains the old matrix DCS fit. "
+            "Run python run_vi.py to fit the Mobius map first.")
+    return fitted
+
+
+def run_dcs_ball(d, starts):
+    fitted = load_dcs_parameters(d)
+    return run_dcs_ball_experiment(
         make_log_density(d), starts, STEP_SIZES["dcs"][d], MAX_STEPS, **fitted,
         seed=proposal_seed(d), seed_index=3,
         stop_at_meeting=True, progress_every=PROGRESS_EVERY)
@@ -146,13 +157,18 @@ def run_dimension(d):
         run_euclidean(d, starts),
     )
     rows = [dict(dimension=d, df=d+1, cutoff=MAX_STEPS, h=STEP_SIZES[row["method"]][d],
-                 scs_latitude=LATITUDES.get(row["method"]), initialization="target", **row)
+                 scs_latitude=LATITUDES.get(row["method"]),
+                 dcs_map="mobius" if row["method"] == "dcs" else None,
+                 initialization="target", **row)
             for row in rows]
     save_completed_rows(rows, RESULTS / f"d_{d:04d}" / "meeting_times.csv")
     return rows
 
 
 def main():
+    # Check every DCS fit before starting the long sampling stage.
+    for d in DIMENSIONS:
+        load_dcs_parameters(d)
     rows = []
     for d in DIMENSIONS:
         rows.extend(run_dimension(d))

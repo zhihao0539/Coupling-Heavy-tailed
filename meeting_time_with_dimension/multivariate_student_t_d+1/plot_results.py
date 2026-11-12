@@ -11,7 +11,7 @@ STYLES = {
     "stereographic": ("Stereographic", "tab:blue"),
     "SCS11": ("SCS11", "tab:green"),
     "SCS19": ("SCS19", "tab:red"),
-    "dcs": ("DCS matrix ball walk", "tab:purple"),
+    "dcs": ("DCS ball walk", "tab:purple"),
     "euclidean": ("Euclidean", "tab:orange"),
 }
 MARKERS = {"stereographic": "o", "SCS11": "^", "SCS19": "s", "dcs": "D", "euclidean": "v"}
@@ -30,6 +30,12 @@ def read_results(root):
 
 def load_results():
     results = read_results(RESULTS)
+    dcs_rows = results[results.method == "dcs"]
+    if "dcs_map" not in results or not dcs_rows.dcs_map.eq("mobius").all():
+        raise ValueError(
+            "Saved DCS results are not from the Mobius map. "
+            "Refit the maps if needed (python run_vi.py), "
+            "then rerun run_experiment.py.")
     for d, rows in results.groupby("dimension"):
         if set(rows.method) != set(STYLES):
             raise ValueError(f"Incomplete set of coupling methods for dimension {d}.")

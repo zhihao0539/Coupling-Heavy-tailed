@@ -22,8 +22,11 @@ The AR(1) target is N(0,C), with C[i,j] = 0.9**abs(i-j). Its comparison uses
 stereographic, matrix DCS ball walk, and Euclidean random walk. Reverse-KL VI
 tunes mu and the full matrix for both transformed methods, and beta for DCS.
 
-All three meeting-time comparisons initialize their chains independently
-from the corresponding target distribution.
+The two Student-t comparisons initialize their chains independently from the
+corresponding target distribution. The AR(1) Gaussian comparison initializes
+each chain independently from N(0,I_d), sharing the same Euclidean pairs across
+its three methods. Its saved VI fits and proposal steps are retained.
+The saved AR(1) coupling results now record `initialization=standard_normal`.
 
 ## AR(1) Gaussian UPAVE at d=50
 

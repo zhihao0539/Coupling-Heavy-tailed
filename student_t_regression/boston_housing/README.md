@@ -19,7 +19,7 @@ The full run uses 1,000 independent initial pairs and 20,000 updates for each of
 
 | Method | Fixed map and proposal parameters |
 |---|---|
-| Stereographic | Matrix L = sqrt(14) I; tangent Gaussian step h = 0.007 |
+| Stereographic | Radius R = sqrt(14); tangent Gaussian step h = 0.007 |
 | Euclidean | Gaussian random-walk step h = 0.03 |
 
 `run_experiment.py` supplies the model and initial pairs, then calls `run_stereographic_experiment` and `run_euclidean_experiment` with explicit parameters. Each performs its repetitions sequentially; no VI or worker setup is needed. Every pair continues for all 20,000 updates, including after meeting, so acceptance rates use the full run. The shared sampler records meeting at exact equality in proposal coordinates; the earlier regression script used a distance threshold of 1e-12. Fixed seed offsets preserve the previously used random streams.

@@ -1,79 +1,74 @@
 {
   "stereographic": {
     "mu": [
-      0.0019515825867057641,
-      0.004950541917822372
+      0.0,
+      0.0
     ],
     "preconditioning_matrix": [
       [
-        1.423831576479496,
+        1.4238341744554908,
         0.0
       ],
       [
-        -0.00022778420178031175,
-        1.428424070019772
+        -0.00024058609727616636,
+        1.4284197596752874
       ]
     ]
   },
   "SCS11": {
     "mu": [
-      -0.0015569670539536395,
-      -0.0001385771173352877
+      0.0,
+      0.0
+    ],
+    "horizontal_observer": [
+      0.0,
+      0.0
     ],
     "preconditioning_matrix": [
       [
-        0.7565621972572165,
+        0.7565505808356866,
         0.0
       ],
       [
-        0.00018041113324631882,
-        0.756882243058436
+        0.00018346713955734402,
+        0.7568762061018548
       ]
-    ],
-    "horizontal_observer": [
-      -0.0020828449073690123,
-      1.3962323654100644e-05
     ]
   },
   "SCS19": {
     "mu": [
-      0.0001189642979351154,
-      0.0004187437722305979
+      0.0,
+      0.0
+    ],
+    "horizontal_observer": [
+      0.0,
+      0.0
     ],
     "preconditioning_matrix": [
       [
-        0.6977418968263407,
+        0.6932750945246233,
         0.0
       ],
       [
-        -0.0009429533354247137,
-        0.6969478504370832
+        -0.0007499286941710763,
+        0.691632837355753
       ]
-    ],
-    "horizontal_observer": [
-      -0.00046249152340540483,
-      -0.0017111996228191758
     ]
   },
   "dcs": {
     "mu": [
-      0.005300032488352359,
-      -0.002170755480332286
+      0.0,
+      0.0
     ],
-    "preconditioning_matrix": [
-      [
-        1.41511577489451,
-        0.0
-      ],
-      [
-        -0.0030549561435759013,
-        1.412550162885441
-      ]
+    "beta": 2.0,
+    "radius": 1.413627654886529,
+    "delta": [
+      6.91595231320706e-05,
+      -0.00016347286157474087
     ]
   },
   "vi_info": {
     "stereographic": {
-      "method": "stereographic",
       "dimension": 2,
       "seed": 20263027,
       "steps": 20000,
@@ -88,10 +83,23 @@
       "holdout_seed": 20263527,
       "initial_holdout_loss": 0.6931471805599456,
       "candidate_holdout_losses": [
-        0.693034020105804,
-        0.6931539196008207
+        0.6930585236602663,
+        0.6931614716583716
       ],
       "chosen_candidate": "last",
+      "tuned_parameters": [
+        "preconditioning_matrix"
+      ],
+      "fixed_parameters": [
+        "mu"
+      ],
+      "theta_slices": {
+        "preconditioning_matrix": [
+          0,
+          3
+        ]
+      },
+      "method": "stereographic",
       "scale_parameterization": "full_cholesky",
       "initial_scale_geometric_mean": 1.4142135623730951,
       "target_info": {
@@ -102,7 +110,6 @@
       }
     },
     "SCS11": {
-      "method": "scs",
       "dimension": 2,
       "seed": 20263028,
       "steps": 20000,
@@ -117,10 +124,24 @@
       "holdout_seed": 20263528,
       "initial_holdout_loss": 1.6876484296197356,
       "candidate_holdout_losses": [
-        0.19283359852228868,
-        0.19282731138129094
+        0.19288011574601466,
+        0.19280670361856525
       ],
       "chosen_candidate": "last_500_parameter_average",
+      "tuned_parameters": [
+        "preconditioning_matrix"
+      ],
+      "fixed_parameters": [
+        "mu",
+        "horizontal_observer"
+      ],
+      "theta_slices": {
+        "preconditioning_matrix": [
+          0,
+          3
+        ]
+      },
+      "method": "scs",
       "scale_parameterization": "full_cholesky",
       "latitude": 1.1,
       "initial_scale_geometric_mean": 0.12856486930664499,
@@ -132,7 +153,6 @@
       }
     },
     "SCS19": {
-      "method": "scs",
       "dimension": 2,
       "seed": 20263029,
       "steps": 20000,
@@ -147,10 +167,24 @@
       "holdout_seed": 20263529,
       "initial_holdout_loss": 0.659436005433983,
       "candidate_holdout_losses": [
-        0.6591026668972442,
-        0.6590185871645172
+        0.6589404196195167,
+        0.6590076096064268
       ],
-      "chosen_candidate": "last_500_parameter_average",
+      "chosen_candidate": "last",
+      "tuned_parameters": [
+        "preconditioning_matrix"
+      ],
+      "fixed_parameters": [
+        "mu",
+        "horizontal_observer"
+      ],
+      "theta_slices": {
+        "preconditioning_matrix": [
+          0,
+          3
+        ]
+      },
+      "method": "scs",
       "scale_parameterization": "full_cholesky",
       "latitude": 1.9,
       "initial_scale_geometric_mean": 0.6698906348083082,
@@ -162,7 +196,6 @@
       }
     },
     "dcs": {
-      "method": "dcs",
       "dimension": 2,
       "seed": 20263030,
       "steps": 20000,
@@ -175,16 +208,34 @@
       "average_last": 500,
       "holdout_size": 20000,
       "holdout_seed": 20263530,
-      "initial_holdout_loss": -0.6159006509540325,
+      "initial_holdout_loss": -0.6159006509540323,
       "candidate_holdout_losses": [
-        -0.6931748319383849,
-        -0.6931444059643033
+        -0.6930838993709947,
+        -0.6931505308091073
       ],
-      "chosen_candidate": "last",
-      "beta": 2,
-      "scale_parameterization": "full_cholesky",
-      "ball_automorphism": "appendix_b_affine",
-      "initial_scale_geometric_mean": 1.0,
+      "chosen_candidate": "last_500_parameter_average",
+      "tuned_parameters": [
+        "radius",
+        "delta"
+      ],
+      "fixed_parameters": [
+        "mu",
+        "beta"
+      ],
+      "theta_slices": {
+        "radius": [
+          0,
+          1
+        ],
+        "delta": [
+          1,
+          3
+        ]
+      },
+      "method": "dcs",
+      "initial_beta": 2.0,
+      "beta": 2.0,
+      "initial_radius": 1.0,
       "target_info": {
         "target": "multivariate_student_t",
         "dimension": 2,

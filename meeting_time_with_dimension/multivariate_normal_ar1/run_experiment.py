@@ -1,4 +1,4 @@
-"""Compare three AR(1)-Gaussian couplings using reverse-KL-fitted maps."""
+"""Compare three AR(1)-Gaussian couplings with independent N(0,I_d) starts."""
 from pathlib import Path
 import sys
 from tempfile import TemporaryDirectory
@@ -8,7 +8,7 @@ import numpy as np
 FOLDER = Path(__file__).resolve().parent
 sys.path.insert(0, str(FOLDER.parents[1]))
 
-from target import DIMENSIONS, make_log_density, sample_target, RHO
+from target import DIMENSIONS, make_log_density, RHO
 from generic_algorithms import (
     run_stereographic_experiment, run_dcs_matrix_ball_experiment,
     run_euclidean_experiment, load_parameters, combine_results, save_results,
@@ -85,10 +85,10 @@ def save_completed_rows(rows, path):
 
 def run_dimension(d):
     rng = np.random.default_rng(np.random.SeedSequence([INITIAL_SEED, d]))
-    starts = sample_target(d, (N_REP, 2), rng)
+    starts = rng.standard_normal(size=(N_REP, 2, d))
     rows = combine_results(run_stereographic(d, starts), run_dcs_ball(d, starts), run_euclidean(d, starts))
     rows = [dict(dimension=d, target="multivariate_normal_ar1", rho=RHO, cutoff=MAX_STEPS,
-                 h=STEP_SIZES[row["method"]][d], initialization="target",
+                 h=STEP_SIZES[row["method"]][d], initialization="standard_normal",
                  map_source="none" if row["method"] == "euclidean" else "reverse_kl",
                  dcs_map="matrix" if row["method"] == "dcs" else None, **row) for row in rows]
     save_completed_rows(rows, RESULTS/f"d_{d:04d}"/"meeting_times.csv")

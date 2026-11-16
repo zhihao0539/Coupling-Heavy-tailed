@@ -19,19 +19,19 @@ from generic_algorithms import (
 )
 from generic_algorithms.plot_results import plot_results
 from skew_t.target import D, log_density
-from skew_t.run_vi import LATITUDE, PARAMETERS_FILE
+from skew_t.run_vi import LATITUDE, PARAMETERS_FILE, DCS_BETA
 from skew_t.generate_initial_states import INITIAL_STATES_FILE
 
 N_REP = 1000
 MAX_STEPS = 1_000_000
 SEED = 42
 PROGRESS_EVERY = 10
-STEREOGRAPHIC_H = 10.0          # Tangent-Gaussian scale on the sphere.
+STEREOGRAPHIC_H = 0.04          # Tangent-Gaussian scale on the sphere.
 EUCLIDEAN_H = 0.35             # Euclidean Gaussian standard deviation.
 SCS_H = 2.0                    # Tangent-Gaussian scale on the bright cap.
 DCS_H = 0.2                    # Ball-walk radius in unit-ball coordinates.
 DCS_RANDOM_WALK_H = 0.02         # Gaussian standard deviation in unit-ball coordinates.
-OUTPUT = FOLDER / 'meeting_times.csv'
+OUTPUT = FOLDER / 'new_meeting_times.csv'
 
 
 def load_initial_pairs(path, n_pairs):
@@ -75,20 +75,20 @@ def run_scs(starts):
 
 
 def run_dcs_ball(starts):
-    fitted = load_parameters(PARAMETERS_FILE, D, ['dcs'])['dcs']
+    fitted = load_parameters(PARAMETERS_FILE, D, ['dcs'], beta=DCS_BETA)['dcs']
     return run_dcs_ball_experiment(
         log_density, starts, DCS_H, MAX_STEPS,
-        mu=fitted['mu'], radius=fitted['radius'], delta=fitted['delta'],
+        mu=fitted['mu'], radius=fitted['radius'], delta=fitted['delta'], beta=fitted['beta'],
         seed=SEED, seed_offset=400_000,
         stop_at_meeting=True, progress_every=PROGRESS_EVERY)
 
 
 def run_dcs_random_walk(starts):
     """Run Gaussian DCS with the configured standard deviation DCS_RANDOM_WALK_H."""
-    fitted = load_parameters(PARAMETERS_FILE, D, ['dcs'])['dcs']
+    fitted = load_parameters(PARAMETERS_FILE, D, ['dcs'], beta=DCS_BETA)['dcs']
     return run_dcs_random_walk_experiment(
         log_density, starts, DCS_RANDOM_WALK_H, MAX_STEPS,
-        mu=fitted['mu'], radius=fitted['radius'], delta=fitted['delta'],
+        mu=fitted['mu'], radius=fitted['radius'], delta=fitted['delta'], beta=fitted['beta'],
         seed=SEED, seed_offset=500_000,
         stop_at_meeting=True, progress_every=PROGRESS_EVERY)
 

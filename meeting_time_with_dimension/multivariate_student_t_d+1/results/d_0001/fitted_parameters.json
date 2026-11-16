@@ -29,12 +29,11 @@
     "mu": [
       0.0
     ],
-    "preconditioning_matrix": [
-      [
-        1.4083401960175463
-      ]
+    "radius": 1.4083205161571462,
+    "delta": [
+      0.00014382355036227478
     ],
-    "beta": 1.9934471715134505
+    "beta": 1.9934415437177506
   },
   "vi_info": {
     "SCS11": {
@@ -138,34 +137,37 @@
       "holdout_seed": 20262530,
       "initial_holdout_loss": -0.34657359027997275,
       "candidate_holdout_losses": [
-        -0.3465310596910847,
-        -0.3465486180365314
+        -0.3465382531450996,
+        -0.34654928065927365
       ],
       "chosen_candidate": "last_500_parameter_average",
       "tuned_parameters": [
-        "preconditioning_matrix",
+        "radius",
+        "delta",
         "beta"
       ],
       "fixed_parameters": [
         "mu"
       ],
       "theta_slices": {
-        "preconditioning_matrix": [
+        "radius": [
           0,
           1
         ],
-        "beta": [
+        "delta": [
           1,
           2
+        ],
+        "beta": [
+          2,
+          3
         ]
       },
       "beta_learning_rate_multiplier": 0.1,
       "method": "dcs",
       "initial_beta": 2.0,
-      "beta": 1.9934471715134505,
-      "scale_parameterization": "full_cholesky",
-      "ball_automorphism": "appendix_b_affine",
-      "initial_scale_geometric_mean": 1.4142135623730951,
+      "beta": 1.9934415437177506,
+      "initial_radius": 1.4142135623730951,
       "target_info": {
         "target": "multivariate_student_t",
         "dimension": 1,

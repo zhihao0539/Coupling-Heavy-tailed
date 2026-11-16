@@ -9,7 +9,7 @@ save and plot the results. Method parameters are explicit in each function;
 there is no `method_settings` dictionary or `partial` binding.
 
 - [`boston_housing`](boston_housing/README.md): Boston Housing regression with fixed-parameter stereographic and Euclidean couplings; no VI.
-- [`nba_salary`](nba_salary/README.md): NBA salary regression with a matrix stereographic map fitted by VI, plus the saved fit, initial states, and results.
+- [`nba_salary`](nba_salary/README.md): NBA salary regression comparing VI-tuned stereographic and matrix DCS ball-walk couplings, with saved fits, shared initial states, and results.
 
 Run either experiment from the repository root:
 

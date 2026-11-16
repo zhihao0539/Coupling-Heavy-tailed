@@ -22,8 +22,9 @@ def load_results():
         raise ValueError("Results must contain exactly the three configured methods, with unique pairs.")
     if not results.target.eq("multivariate_normal_ar1").all() or not np.allclose(results.rho, RHO):
         raise ValueError("Results must use the configured AR(1) Gaussian target.")
-    if not results.initialization.eq("target").all() or not results.cutoff.eq(MAX_STEPS).all():
-        raise ValueError("Results must use stationary starts and the common cutoff.")
+    if not results.initialization.eq("standard_normal").all() or not results.cutoff.eq(MAX_STEPS).all():
+        raise ValueError("Results must use N(0,I_d) starts and the current cutoff; "
+                         "rerun run_experiment.py before plotting the updated comparison.")
     expected = np.where(results.method.eq("euclidean"), "none", "reverse_kl")
     if not results.map_source.eq(expected).all():
         raise ValueError("Transformed methods must use the new reverse-KL fits.")
@@ -47,6 +48,7 @@ def summarize(results):
         restricted = np.where(met, tau, MAX_STEPS)
         se = restricted.std(ddof=1)/np.sqrt(len(tau))
         rows.append(dict(dimension=int(d), method=method, h=float(data.h.iloc[0]),
+            initialization=str(data.initialization.iloc[0]),
             cutoff=MAX_STEPS, n_replicates=len(tau), n_met=int(met.sum()),
             n_censored=int((~met).sum()), fraction_met=float(met.mean()),
             mean_meeting_time=met_mean if met.all() else np.nan,

@@ -20,15 +20,15 @@ python skew_t/run_experiment.py
    common optimizer settings are in `VI_SETTINGS`.
 2. `generate_initial_states.py` loads the fitted SCS map, draws independent
    uniform bright-cap points, and projects them into Euclidean coordinates.
-   It saves 1,000 pairs in `initial_states.npz`, under `initial_states`,
+   It saves 1,000 pairs in `new_initial_states.npz`, under `initial_states`,
    with shape `(1000, 2, 100)`. It uses `INITIAL_SEED=43` and performs no VI
    or MCMC. Run this step again after changing the fit.
 3. `run_experiment.py` loads all three fitted maps and the new initial pairs,
    calls `run_stereographic`, `run_euclidean`, `run_scs`, `run_dcs_ball`,
    and `run_dcs_random_walk`,
    then combines their result rows and plots them. Euclidean coupling uses
-   the same Euclidean pairs. The output is `meeting_times.csv` and
-   `meeting_times.pdf`.
+   the same Euclidean pairs. The output is `new_meeting_times.csv` and
+   `new_meeting_times.pdf`.
 
 ## Parameters fitted by VI
 
@@ -39,7 +39,7 @@ python skew_t/run_experiment.py
 | DCS | Center `mu`, scalar `radius`, and Mobius offset `delta` | Center and offset zero, radius `sqrt(NU)` | 26092901 |
 
 The diagonal entries of each fitted matrix are positive. The SCS latitude is
-fixed at `1.1`; the DCS radial exponent is fixed at `beta=2`. DCS uses the
+fixed at `1.1`; the DCS radial exponent is fixed during each fit by `DCS_BETA` (default 2.0). DCS uses the
 scalar-radius Mobius transformation, with no matrix preconditioning. DCS ball
 walk and DCS Gaussian random walk load the same saved `dcs` VI map, including
 its fitted location, radius, and Mobius offset; both use the common initial pairs.
@@ -78,7 +78,7 @@ application function in `run_experiment.py`:
 
 | Method | Proposal step `h` |
 |---|---:|
-| Stereographic | 10.0 |
+| Stereographic | 0.04 |
 | Euclidean | 0.35 |
 | SCS | 2.0 |
 | DCS ball walk | 0.20 |
@@ -89,31 +89,15 @@ Change these constants to choose the run size and proposal steps. Every pair
 stops at meeting or the iteration cutoff; SCS rejects dark-side proposals
 directly. The runner performs no step-size adaptation.
 
-The supplied `fitted_parameters.json`, `initial_states.npz`, `meeting_times.csv`,
-and `meeting_times.pdf` are the current saved inputs and results. You can run
-`python skew_t/run_experiment.py` directly with these inputs; it replaces the
-saved CSV and PDF. Refitting is optional. When refitting, regenerate the initial
-states before running the coupling comparison.
-
-| Method | Meetings by 1,000,000 | Mean / restricted mean meeting time | Mean path acceptance |
-|---|---:|---:|---:|
-| SCS with matrix VI | 1,000/1,000 | 11.416 | 63.754% |
-| DCS ball walk with scalar-radius VI | 1,000/1,000 | 1,268.872 | 24.381% |
-| DCS Gaussian walk with scalar-radius VI | 1,000/1,000 | 1,328.853 | 24.090% |
-| Euclidean | 968/1,000 | 80,787.652 | 24.927% |
-| Stereographic with matrix VI | 367/1,000 | 651,503.660 | 14.200% |
-
-For censored methods, the reported mean is the average of `min(tau, 1000000)`;
-otherwise it is the ordinary mean. CSV meeting time `-1` denotes a censored
-pair. Acceptance is the unweighted mean of the two per-chain rates across runs,
-measured through meeting or censoring. It is not a stationary acceptance
-estimate. The histogram includes meeting pairs only, while survival includes
-all pairs.
+The legacy `initial_states.npz`, `meeting_times.csv`, and `meeting_times.pdf`
+files retained on GitHub are historical outputs and are not read by the
+current runners. The supplied current comparison uses `new_initial_states.npz`,
+`new_meeting_times.csv`, and `new_meeting_times.pdf`.
 
 To plot a new coupling run without running the samplers again:
 
 ```sh
-python generic_algorithms/plot_results.py skew_t/meeting_times.csv --log-scale
+python generic_algorithms/plot_results.py skew_t/new_meeting_times.csv --log-scale
 ```
 
 ## Run a method separately
@@ -137,7 +121,34 @@ gaussian_rows = run_dcs_random_walk(starts)
 ```
 
 `run_dcs_random_walk` reuses the same fitted Mobius map and has its own seed
-offset, 500,000. `main()` includes it with `DCS_RANDOM_WALK_H=0.02`. This is
+offset, 500,000. `main()` includes it with `DCS_RANDOM_WALK_H=0.3`. This is
 the Gaussian standard deviation in unit-ball coordinates, sigma/R; the ball
 walk keeps its own radius `DCS_H=0.2`. Its result label is `dcs_rw`, which the
 shared plotter recognizes.
+
+
+## DCS exponent
+
+`DCS_BETA` in `run_vi.py` selects the fixed positive radial exponent (default
+2.0). Both DCS proposals load and use that fitted exponent. Existing beta=2
+fits still load without refitting. If you change `DCS_BETA`, refit DCS with
+`run_dcs_vi(..., beta=DCS_BETA)` before sampling; the runner checks that the
+saved exponent matches. Proposal steps are configured separately.
+
+## Completed current comparison
+
+The saved comparison contains 1,000 trials per method, each stopped at meeting
+or 1,000,000 steps. Stereographic was rerun at h=0.04 using the saved fits,
+initial pairs, and original proposal seeds; the other four methods retain
+their completed results.
+
+| Method | Meetings | Mean among met pairs | Restricted mean | Acceptance |
+|---|---:|---:|---:|---:|
+| stereographic | 782/1000 | 23059.910 | 236032.850 | 39.183% |
+| euclidean | 968/1000 | 50400.467 | 80787.652 | 24.927% |
+| scs | 1000/1000 | 11.416 | 11.416 | 63.754% |
+| dcs | 1000/1000 | 1268.872 | 1268.872 | 24.381% |
+| dcs_rw | 1000/1000 | 1328.853 | 1328.853 | 24.090% |
+
+The restricted mean averages min(meeting time, cutoff) across all pairs.
+Means among met pairs condition on meeting before the cutoff.

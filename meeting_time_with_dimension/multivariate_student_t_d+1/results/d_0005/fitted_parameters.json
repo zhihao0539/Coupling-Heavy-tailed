@@ -113,44 +113,15 @@
       0.0,
       0.0
     ],
-    "preconditioning_matrix": [
-      [
-        1.898704698814349,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      [
-        0.0005123998635808276,
-        1.8969206740102904,
-        0.0,
-        0.0,
-        0.0
-      ],
-      [
-        0.000984091160861589,
-        0.0011708184396005776,
-        1.8986839788869139,
-        0.0,
-        0.0
-      ],
-      [
-        -0.001411897315041126,
-        0.00030615064732487056,
-        0.003001026402322322,
-        1.9000542414230472,
-        0.0
-      ],
-      [
-        0.002229460277260112,
-        -0.0006709362203241642,
-        0.0013865708202754424,
-        -0.002299475087147197,
-        1.898032803403193
-      ]
+    "radius": 1.8983728705449665,
+    "delta": [
+      -0.00011968055460525906,
+      8.819702637924766e-05,
+      7.558286897411808e-05,
+      -0.00029364794424675556,
+      3.0297178641170963e-05
     ],
-    "beta": 3.508644348357404
+    "beta": 3.508433999835221
   },
   "vi_info": {
     "SCS11": {
@@ -254,34 +225,37 @@
       "holdout_seed": 20266530,
       "initial_holdout_loss": -2.0485154531589984,
       "candidate_holdout_losses": [
-        -2.4026506090998767,
-        -2.402808683547805
+        -2.4024098866221686,
+        -2.4027956939866293
       ],
       "chosen_candidate": "last_500_parameter_average",
       "tuned_parameters": [
-        "preconditioning_matrix",
+        "radius",
+        "delta",
         "beta"
       ],
       "fixed_parameters": [
         "mu"
       ],
       "theta_slices": {
-        "preconditioning_matrix": [
+        "radius": [
           0,
-          15
+          1
+        ],
+        "delta": [
+          1,
+          6
         ],
         "beta": [
-          15,
-          16
+          6,
+          7
         ]
       },
       "beta_learning_rate_multiplier": 0.1,
       "method": "dcs",
       "initial_beta": 2.867868604772738,
-      "beta": 3.508644348357404,
-      "scale_parameterization": "full_cholesky",
-      "ball_automorphism": "appendix_b_affine",
-      "initial_scale_geometric_mean": 2.449489742783178,
+      "beta": 3.508433999835221,
+      "initial_radius": 2.449489742783178,
       "target_info": {
         "target": "multivariate_student_t",
         "dimension": 5,

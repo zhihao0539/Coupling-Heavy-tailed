@@ -12,6 +12,7 @@ from skew_t.target import D, NU, log_density_jax
 
 PARAMETERS_FILE = FOLDER / 'fitted_parameters.json'
 LATITUDE = 1.1
+DCS_BETA = 2.0  # Fixed during VI; edit this before refitting DCS.
 STEPS = 4000
 VI_SETTINGS = dict(
     steps=STEPS, batch_size=2048, holdout_size=20000,
@@ -19,7 +20,7 @@ VI_SETTINGS = dict(
 )
 # Matrix methods fit the center and all lower-triangular matrix entries.
 # SCS also fits its horizontal observer; DCS fits its center, radius and delta.
-# LATITUDE and the DCS exponent beta=2 stay fixed.
+# LATITUDE and DCS_BETA stay fixed during the fit.
 def main():
     run_stereographic_vi(
         log_density_jax, D, mu=np.zeros(D), preconditioning_matrix=np.sqrt(D) * np.eye(D),
@@ -32,7 +33,7 @@ def main():
         seed=26093001, chunk_size=250, output_json=PARAMETERS_FILE,
         target_info={'df': NU}, **VI_SETTINGS)
     run_dcs_vi(
-        log_density_jax, D, mu=np.zeros(D), radius=np.sqrt(NU), delta=np.zeros(D),
+        log_density_jax, D, mu=np.zeros(D), radius=np.sqrt(NU), delta=np.zeros(D), beta=DCS_BETA,
         seed=26092901, chunk_size=STEPS, output_json=PARAMETERS_FILE,
         target_info={'df': NU}, **VI_SETTINGS)
 

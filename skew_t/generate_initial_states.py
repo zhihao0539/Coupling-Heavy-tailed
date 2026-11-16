@@ -14,7 +14,7 @@ from skew_t.run_vi import LATITUDE, PARAMETERS_FILE
 
 N_INITIAL_PAIRS = 1000
 INITIAL_SEED = 43
-INITIAL_STATES_FILE = FOLDER / 'initial_states.npz'
+INITIAL_STATES_FILE = FOLDER / 'new_initial_states.npz'
 
 
 def generate_initial_pairs(parameters, n_pairs=N_INITIAL_PAIRS, seed=INITIAL_SEED):

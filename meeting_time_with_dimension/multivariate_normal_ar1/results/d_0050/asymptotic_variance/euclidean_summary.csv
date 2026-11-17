@@ -1,2 +1,2 @@
-method,dimension,observable,n_replicates,mean_v,mcse,ci95_lower,ci95_upper,mean_varh,mean_cost,estimator_inefficiency,lag,k,ell,R,cutoff,step_size,beta
-euclidean,50,x1,100,6920.815549187524,995.8001687507709,4969.047218436013,8872.583879939035,1.0018989660731272,2563023.52,254154019555825.34,83180,83180,415900,10,1000000,0.11407727605867513,
+method,dimension,observable,n_replicates,mean_v,mcse,ci95_lower,ci95_upper,mean_varh,mean_cost,mean_cost_umcmc,mean_cost_poisson,estimator_inefficiency,lag,k,ell,R,cutoff,step_size,beta,implementation,map_source
+euclidean,50,x1,100,169.77853527257633,13.618036127178556,143.08718446330636,196.4698860818463,1.012963404751245,32172.82,9329.42,22843.4,596647868.0670334,808,808,4040,10,1000000,0.4242640687119285,,stored_signed_measure,gaussian_reverse_kl

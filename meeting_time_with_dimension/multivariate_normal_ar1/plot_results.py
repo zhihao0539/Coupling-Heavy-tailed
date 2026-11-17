@@ -1,16 +1,17 @@
-"""Plot means where all pairs met and means among met pairs at every dimension."""
+"""Plot mean meeting time versus dimension and the d=50 UPAVE comparison."""
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
 from run_experiment import RESULTS, N_REP, MAX_STEPS
 from target import DIMENSIONS, RHO
+from plot_asymptotic_variance import load_estimates
 from generic_algorithms.plot_results import plot_results as plot_generic
 
 STYLES = {
-    "stereographic": ("Stereographic", "tab:blue"),
-    "dcs": ("DCS ball walk (matrix)", "tab:purple"),
-    "euclidean": ("Euclidean", "tab:orange"),
+    "stereographic": ("SRWM", "tab:blue"),
+    "dcs": ("DCS", "tab:purple"),
+    "euclidean": ("RWMH", "tab:orange"),
 }
 MARKERS = {"stereographic": "o", "dcs": "D", "euclidean": "v"}
 
@@ -25,9 +26,9 @@ def load_results():
     if not results.initialization.eq("standard_normal").all() or not results.cutoff.eq(MAX_STEPS).all():
         raise ValueError("Results must use N(0,I_d) starts and the current cutoff; "
                          "rerun run_experiment.py before plotting the updated comparison.")
-    expected = np.where(results.method.eq("euclidean"), "none", "reverse_kl")
+    expected = np.where(results.method.eq("euclidean"), "gaussian_reverse_kl", "reverse_kl")
     if not results.map_source.eq(expected).all():
-        raise ValueError("Transformed methods must use the new reverse-KL fits.")
+        raise ValueError("RWMH must use Gaussian VI preconditioning; isotropic RWM results are obsolete.")
     dcs = results.loc[results.method.eq("dcs")]
     if not dcs.dcs_map.eq("matrix").all() or not np.isfinite(dcs.beta).all() or not dcs.beta.gt(2).all():
         raise ValueError("DCS must use the fitted matrix map with beta>2.")
@@ -60,24 +61,37 @@ def summarize(results):
 
 
 def plot_dimension_summary(summary):
+    estimates = load_estimates().set_index("method").loc[list(STYLES)]
+    mean, error = estimates.mean_v.to_numpy(), estimates.mcse.to_numpy()
+    if np.any(mean-error <= 0):
+        raise ValueError("A logarithmic UPAVE plot requires positive mean-minus-MCSE values.")
     fig, axes = plt.subplots(1, 2, figsize=(11.5, 5))
     for name, (label, color) in STYLES.items():
         data = summary.loc[summary.method.eq(name)].sort_values("dimension")
         style = dict(marker=MARKERS[name], linestyle="-", markerfacecolor="none", color=color, label=label)
         axes[0].errorbar(data.dimension, data.mean_meeting_time,
                         yerr=data.mean_meeting_time_mcse, capsize=3, **style)
-        axes[1].errorbar(data.dimension, data.mean_met_pairs,
-                        yerr=data.mean_met_pairs_mcse, capsize=3, **style)
-    axes[0].set(title="Mean (only when all pairs met)", ylabel="Mean meeting time")
-    axes[1].set(title="Mean among met pairs", ylabel="Mean meeting time")
-    for ax in axes:
-        ax.set_xscale("log")
-        ax.set_yscale("log")
-        ax.set_xticks(DIMENSIONS, [str(d) for d in DIMENSIONS])
-        ax.set_xlabel("Dimension d")
-        ax.grid(True, alpha=.3)
-        ax.set_axisbelow(True)
+    axes[0].set(title="Mean (only when all pairs met)", ylabel="Mean meeting time",
+                xlabel="Dimension d", xscale="log", yscale="log")
+    axes[0].set_xticks(DIMENSIONS, [str(d) for d in DIMENSIONS])
+    axes[0].grid(True, alpha=.3)
     axes[0].legend(fontsize=9)
+
+    positions = np.arange(len(estimates))
+    labels, colors = zip(*STYLES.values())
+    axes[1].bar(positions, mean, width=.6, yerr=error, capsize=5, color=colors,
+                edgecolor="black", linewidth=.6,
+                error_kw=dict(ecolor="black", elinewidth=1.3, capthick=1.3))
+    axes[1].set(title=r"UPAVE ($d=50$, $h(x)=x_1$)", xlabel="Method",
+                ylabel=r"Estimated asymptotic variance $\widehat{v}(P,h)$", yscale="log")
+    axes[1].set_ylim(.8, 2*float(np.max(mean+error)))
+    axes[1].set_xticks(positions, labels)
+    for position, value, se in zip(positions, mean, error):
+        axes[1].text(position, (value+se)*1.13, f"{value:.2f} ± {se:.2f}",
+                     ha="center", va="bottom", fontsize=9)
+    axes[1].grid(axis="y", which="major", alpha=.3)
+    for ax in axes:
+        ax.set_axisbelow(True)
     fig.tight_layout()
     for suffix in ("pdf", "png"):
         fig.savefig(RESULTS/f"meeting_times_vs_dimension.{suffix}", dpi=200, bbox_inches="tight")

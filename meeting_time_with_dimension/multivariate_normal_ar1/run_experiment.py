@@ -13,6 +13,7 @@ from generic_algorithms import (
     run_stereographic_experiment, run_dcs_matrix_ball_experiment,
     run_euclidean_experiment, load_parameters, combine_results, save_results,
 )
+from generic_algorithms.transformations import affine_inverse
 
 RESULTS = FOLDER / "results"
 N_REP = 100
@@ -38,11 +39,11 @@ STEP_SIZES = {
         100: 0.22293431187466978,
     },
     "euclidean": {
-        5: 0.5414673072450846,
-        10: 0.2897306905045301,
-        20: 0.18987264159928455,
-        50: 0.11407727605867513,
-        100: 0.07846011787977335,
+        5: 2.3515101530718505,
+        10: 1.1771323825530848,
+        20: 0.7208434242404264,
+        50: 0.4242640687119285,
+        100: 0.3,
     },
 }
 
@@ -70,8 +71,18 @@ def run_dcs_ball(d, starts):
 
 
 def run_euclidean(d, starts):
+    """Run standard RWMH after whitening by the Gaussian VI fit."""
+    parameters = fitted_parameters(d, "euclidean")
+    mu, scale = parameters["mu"], parameters["preconditioning_matrix"]
+    log_det = np.log(np.diag(scale)).sum()
+    target = make_log_density(d)
+
+    def whitened_log_density(z):
+        return target(mu + scale @ z) + log_det
+
     return run_euclidean_experiment(
-        make_log_density(d), starts, STEP_SIZES["euclidean"][d], MAX_STEPS,
+        whitened_log_density, affine_inverse(starts, parameters),
+        STEP_SIZES["euclidean"][d], MAX_STEPS,
         seed=SEED+d, seed_index=4, stop_at_meeting=True, progress_every=PROGRESS_EVERY)
 
 
@@ -89,7 +100,7 @@ def run_dimension(d):
     rows = combine_results(run_stereographic(d, starts), run_dcs_ball(d, starts), run_euclidean(d, starts))
     rows = [dict(dimension=d, target="multivariate_normal_ar1", rho=RHO, cutoff=MAX_STEPS,
                  h=STEP_SIZES[row["method"]][d], initialization="standard_normal",
-                 map_source="none" if row["method"] == "euclidean" else "reverse_kl",
+                 map_source="gaussian_reverse_kl" if row["method"] == "euclidean" else "reverse_kl",
                  dcs_map="matrix" if row["method"] == "dcs" else None, **row) for row in rows]
     save_completed_rows(rows, RESULTS/f"d_{d:04d}"/"meeting_times.csv")
     return rows

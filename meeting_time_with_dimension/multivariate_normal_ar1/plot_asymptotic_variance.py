@@ -9,7 +9,7 @@ RESULTS = Path(__file__).resolve().parent / "results/d_0050/asymptotic_variance"
 METHODS = {
     "stereographic": ("Stereographic", "tab:blue"),
     "dcs": ("DCS (matrix)", "tab:purple"),
-    "euclidean": ("Euclidean", "tab:orange"),
+    "euclidean": ("RWMH", "tab:orange"),
 }
 
 
@@ -23,6 +23,10 @@ def load_estimates():
             raise ValueError("This plot requires d=50 and h(x)=x_1.")
         if not data.initial_distribution.eq("N(0,I)").all():
             raise ValueError("This comparison requires standard-Gaussian initial states.")
+        if method == "euclidean" and ("map_source" not in data or
+                not data.map_source.eq("gaussian_reverse_kl").all()):
+            raise ValueError("Saved Euclidean UPAVE estimates use the old isotropic kernel. "
+                             "Run run_asymptotic_variance.py --method euclidean before plotting RWMH.")
         values = data.v.to_numpy(dtype=float)
         if not np.isfinite(values).all():
             raise ValueError(f"{method}: all estimator replicates must be finite.")

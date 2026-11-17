@@ -1,0 +1,16 @@
+{
+  "h": 0.4,
+  "cutoff": 1000000,
+  "seconds": 701.4284747919301,
+  "n_pairs": 1000,
+  "n_met": 946,
+  "n_censored": 54,
+  "mean_acceptance": 0.20196644642753955,
+  "acceptance_mcse": 0.005165993844585298,
+  "mean_meeting_time": null,
+  "mean_meeting_time_met": 69438.41014799154,
+  "meeting_time_mcse": 4218.446289336585,
+  "median_meeting_time_met": 24092.5,
+  "maximum_meeting_time_met": 938402,
+  "mean_iterations": 119688.736
+}

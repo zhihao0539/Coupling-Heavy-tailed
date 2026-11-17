@@ -1,6 +1,9 @@
 # Coupling algorithms and variational inference
 
-Sampling has an explicit function for each coupling and map family.
+Sampling has an explicit function for each coupling and map family. You supply
+that method's parameters directly; experiment calls do not use `method_settings`.
+The transformations and proposal formulas remain in `transformations.py` and
+`algorithms.py`. Importing the package or loading saved fits does not import JAX.
 
 ## Method-specific samplers
 
@@ -13,10 +16,10 @@ arguments are keyword-only:
 | `coupled_euclidean` | None | Gaussian in Euclidean coordinates |
 | `coupled_stereographic` | `mu`, `preconditioning_matrix` | Tangent Gaussian on the sphere |
 | `coupled_scs` | `mu`, `preconditioning_matrix`, `horizontal_observer`; optional `latitude=1.1` | Tangent Gaussian, rejecting the dark side |
-| `coupled_dcs_ball` | `mu`, `radius`, `delta` | Ball walk with the Mobius map |
-| `coupled_dcs_random_walk` | `mu`, `radius`, `delta` | Gaussian walk with the Mobius map |
-| `coupled_dcs_matrix_ball` | `mu`, `preconditioning_matrix` | Ball walk with the matrix radial map |
-| `coupled_dcs_matrix_random_walk` | `mu`, `preconditioning_matrix` | Gaussian walk with the matrix radial map |
+| `coupled_dcs_ball` | `mu`, `radius`, `delta`; optional `beta=2.0` | Ball walk with the Mobius map |
+| `coupled_dcs_random_walk` | `mu`, `radius`, `delta`; optional `beta=2.0` | Gaussian walk with the Mobius map |
+| `coupled_dcs_matrix_ball` | `mu`, `preconditioning_matrix`; optional `beta=2.0` | Ball walk with the matrix radial map |
+| `coupled_dcs_matrix_random_walk` | `mu`, `preconditioning_matrix`; optional `beta=2.0` | Gaussian walk with the matrix radial map |
 
 `mu` is a length-d location vector. A preconditioning matrix is a d-by-d
 lower-triangular matrix with positive diagonal. For an isotropic stereographic
@@ -25,7 +28,7 @@ or SCS map, pass `preconditioning_matrix=R * np.eye(d)`.
 SCS latitude must be between 0 and 2. Its horizontal observer must have norm
 below `sqrt(latitude * (2 - latitude))`. For Mobius DCS, `radius` is the positive
 scale R and `delta` has norm below one. Matrix DCS has its scale in the matrix
-and has no `radius` or `delta` argument. Both DCS map families use beta=2.
+and has no `radius` or `delta` argument. Both DCS map families accept a fixed positive `beta`, defaulting to 2.
 
 `h` is a Gaussian standard deviation for Euclidean coupling and a tangent
 Gaussian scale for sphere proposals. DCS works in unit-ball coordinates: `h`
@@ -142,7 +145,8 @@ their previous stream indices and offsets.
 
 Each experiment returns rows with `method`, `replicate`, `met`, `meeting_time`,
 `iterations`, `acceptance_rate_chain1`, and `acceptance_rate_chain2`. Censored
-times are recorded as -1. `combine_results` interleaves rows by repetition,
+times are recorded as -1. DCS rows additionally record `beta`; combined CSVs
+leave this field empty for other methods. `combine_results` interleaves rows by repetition,
 preserving the order in which the result groups were supplied. Each individual
 experiment now completes before the next one starts.
 
@@ -191,35 +195,35 @@ Matplotlib. JAX uses 64-bit arithmetic when `vi.py` is imported.
 
 The VI functions select their reference distributions and transformations directly:
 
-| Fit function in `vi.py` | Runner exported by the package | Uniform reference | Initial map arguments |
+| Fit function in `vi.py` | Runner exported by the package | Reference distribution | Fields available to `tune` |
 |---|---|---|---|
+| `fit_euclidean_vi` | `run_euclidean_vi` | Standard Gaussian N(0,I) | `mu`, `preconditioning_matrix` |
 | `fit_stereographic_vi` | `run_stereographic_vi` | Whole unit sphere S^d | `mu`, `preconditioning_matrix` |
-| `fit_scs_vi` | `run_scs_vi` | Bright cap, `z[-1] < latitude - 1` | `mu`, `preconditioning_matrix`, `horizontal_observer`, optional `latitude=1.1` |
-| `fit_dcs_vi` | `run_dcs_vi` | Unit ball B(1) | `mu`, `radius`, `delta`, optional `beta=2.0` |
-| `fit_dcs_matrix_vi` | `run_dcs_matrix_vi` | Unit ball B(1) | `mu`, `preconditioning_matrix`, optional `beta=2.0` |
+| `fit_scs_vi` | `run_scs_vi` | Bright cap, `z[-1] < latitude - 1` | `mu`, `preconditioning_matrix`, `horizontal_observer` |
+| `fit_dcs_vi` | `run_dcs_vi` | Unit ball B(1) | `mu`, `radius`, `delta`, `beta` |
+| `fit_dcs_matrix_vi` | `run_dcs_matrix_vi` | Unit ball B(1) | `mu`, `preconditioning_matrix`, `beta` |
 
-All four start with `(log_pdf, dimension)` and take the initial map fields as
-keyword arguments. Both the `fit_*_vi` functions and `run_*_vi` runners accept
-`tune` to choose the fields Adam updates.
+Both the `run_*_vi` runners and the `fit_*_vi` functions take
+`(log_pdf, dimension)`, initial map values, and an optional `tune` argument.
+List the fields you want Adam to update. Each omitted field keeps its supplied
+value during training, holdout selection, and saving. A vector or matrix counts
+as one field. SCS latitude sets the reference cap and stays fixed.
 
-| Method | Fields available to `tune` |
-|---|---|
-| Stereographic | `mu`, `preconditioning_matrix` |
-| SCS | `mu`, `preconditioning_matrix`, `horizontal_observer` |
-| Mobius DCS | `mu`, `radius`, `delta`, `beta` |
-| Matrix DCS | `mu`, `preconditioning_matrix`, `beta` |
+Euclidean VI fits the affine map `x = mu + L z` from standard Gaussian draws,
+minimizing reverse KL with loss `-mean(log_pdf(mu + L z)) - log det L`.
+It uses the same Adam, holdout selection, optional `tune` fields, and JSON
+format as the other fits. Target draws and a known target covariance are not
+required. Use `affine_inverse` from `transformations.py` to whiten the initial
+states, then run the standard Euclidean coupling against
+`log_pdf(mu + L z) + log det L`. Freeze the fitted map during MCMC and tune
+the scalar proposal step separately. Other experiments' isotropic Euclidean
+samplers retain their existing behavior unless this transformation is applied.
 
-Omitting `tune` or passing `None` fits the map fields with DCS beta held fixed.
-Include `"beta"` explicitly to learn the exponent along with the selected fields.
-Pass a list or tuple of names to choose a subset, or one name such as
-`tune="preconditioning_matrix"`. A vector or matrix is selected as a whole.
-Omitted fields keep their supplied physical values during optimization,
-holdout selection, and saving. With `tune=()`, the supplied map is evaluated
-throughout the requested steps. Duplicate and unsupported names raise an error.
-
-DCS ball walk and Gaussian random walk can share a VI fit since both use the
-uniform ball reference. DCS takes `beta=2.0` by default and supports any positive
-exponent. SCS latitude sets the cap and is fixed.
+Omit `tune` to use the original fit for each method. That fits all the listed
+fields except DCS beta, which defaults to 2. A single name such as
+`tune="beta"` also works. With `tune=()`, VI evaluates the supplied map throughout
+the requested steps. The saved DCS map can be used by both ball walk and
+Gaussian random walk.
 
 The reference samplers are separately callable from `generic_algorithms.vi`:
 `sample_uniform_sphere(key, n, dimension)`,
@@ -227,9 +231,9 @@ The reference samplers are separately callable from `generic_algorithms.vi`:
 `sample_uniform_ball(key, n, dimension)`. SCS uses rejection sampling on the
 sphere to obtain points uniform on the bright cap. DCS samples a uniform
 direction with radius `U**(1/dimension)` to obtain points uniform in volume.
-References are independent of the fitted parameters; the SCS latitude is fixed.
+SCS takes `latitude=1.1` by default.
 
-For example, fix the SCS location at zero and fit its matrix and observer.
+For example, hold the SCS location fixed and fit the matrix and observer.
 
 ```python
 import numpy as np
@@ -245,7 +249,7 @@ parameters, info, history = run_scs_vi(
 )
 ```
 
-For a matrix DCS fit with the location fixed, select the matrix.
+Here the location and matrix stay fixed while VI fits the DCS exponent.
 
 ```python
 from generic_algorithms import run_dcs_matrix_vi
@@ -253,10 +257,15 @@ from generic_algorithms import run_dcs_matrix_vi
 parameters, info, history = run_dcs_matrix_vi(
     log_pdf_jax, dimension=d,
     mu=np.zeros(d), preconditioning_matrix=np.sqrt(2.) * np.eye(d),
-    tune="preconditioning_matrix",
-    seed=43, output_json="fitted_parameters.json",
+    beta=3.0, tune=("beta",), seed=43, output_json="fitted_parameters.json",
 )
 ```
+
+For a joint fit in the matrix example, use
+`tune=("mu", "preconditioning_matrix", "beta")`. VI learns `log(beta)` so the fitted
+exponent is positive in every dimension.
+To fix the exponent, pass its value as `beta` and omit `"beta"` from `tune`.
+The log-beta coordinate uses 0.1 times the Adam learning rate.
 
 Each call returns its own `(parameters, info, history)`. A runner prints the fit
 summary, records the starting scale and optional `target_info`, and optionally
@@ -293,7 +302,8 @@ All fit functions and runners expose the same optimizer options:
 The runners additionally accept `output_json=None`, `label`, and
 `target_info=None`. Application scripts may share a `VI_SETTINGS` dictionary of
 these common optimizer controls; each call supplies its own map fields and
-reference-specific arguments explicitly. The migrated applications use these direct calls.
+reference-specific arguments explicitly. All five applications that fit VI maps
+have been migrated to these direct calls.
 
 ## VI objective, history, and parameter conversion
 
@@ -308,10 +318,10 @@ This is reverse KL up to constants independent of the fitted parameters. Each
 map has its own objective function: `stereographic_reverse_kl`, `scs_reverse_kl`,
 `dcs_reverse_kl`, or `dcs_matrix_reverse_kl`. These take
 `(theta, samples, log_pdf, dimension)`; SCS additionally takes `latitude`.
-They call the corresponding transformations directly. Adam, optimization chunks,
-and holdout selection are shared numerical code with no method selection.
-Selective fits reconstruct the same map from the free coordinates and the
-supplied fixed fields. Only the free coordinates receive Adam updates.
+These standalone objectives and their pack/unpack functions operate on full
+map vectors with DCS beta supplied separately (`beta=2.0` by default).
+Selective fits pass the chosen coordinates and fixed fields directly to the
+same transformations. Adam and holdout selection operate on the free vector.
 
 A differentiable target is not sufficient to guarantee finite reverse KL. Choose
 a reference/map family with suitable tails for the target. Raw objectives from
@@ -328,16 +338,14 @@ optimum and does not tune an MCMC proposal step size.
 `history["loss"][k]` is the loss before update k+1; `history["theta"][k]` is
 the parameter vector after that update. Losses can be negative and need not
 decrease at each update. Every history contains `steps` losses and parameter
-vectors. With the default full fit, their lengths are d+d(d+1)/2 for
-stereographic or matrix DCS, 2d+d(d+1)/2 for SCS, and 2d+1 for Mobius DCS.
-For a selected subset, `theta` contains only that subset in the field order
-shown in the table. `info["theta_slices"]` maps each selected field to its
-start and stop columns. `info["tuned_parameters"]` and
-`info["fixed_parameters"]` record the chosen fields. Learning DCS beta adds one
-log-beta coordinate and a physical-scale `history["beta"]` trace. For example, a matrix-only
-fit has d(d+1)/2 columns and a location-only fit has d columns.
+vectors. A vector contains only the free coordinates, ordered as in the field
+table above. For example, at d=3 an SCS fit with fixed location has 6 matrix
+coordinates and 3 observer coordinates. A DCS beta-only fit has just one
+coordinate. `info["theta_slices"][name]` gives the start and stop columns of
+each fitted field. A learned DCS exponent also has a physical-scale trace in
+`history["beta"]`.
 
-For a full fit, use the matching conversion function to inspect its history.
+For the default full-map fits, inspect an iterate with the matching conversion function. For DCS, pass the fixed beta used in the fit.
 
 ```python
 from generic_algorithms.vi import unpack_scs_parameters
@@ -362,7 +370,8 @@ record the initial geometric scale or radius and any application description.
 
 ## Load fitted maps for coupling
 
-The saved JSON format is unchanged. Load the required labels, then pass their
+The saved JSON structure is retained; new DCS maps include a scalar `beta`
+in their parameters and VI metadata. Load the required labels, then pass their
 fields to the matching sampler or experiment function:
 
 ```python
@@ -418,26 +427,62 @@ DCS has separate `dcs_mobius_map` / `dcs_mobius_inverse` and
 directly. The short `dcs_map` / `dcs_inverse` helpers remain available for
 external callers working with either saved representation.
 
-## DCS exponent and the Student-t(d+1) experiment
 
-DCS maps, inverses, coupling runners, and VI support positive `beta`. Matrix
-DCS uses `x = mu + L s / (1 - ||s||**beta)**(1/beta)`. Mobius DCS applies its
-ball automorphism before the radial transformation. Saved maps record beta.
-The loader interprets older DCS maps without beta as using beta=2.
+## General-beta DCS
 
-For example, fit a matrix and exponent together with a fixed location.
+For the matrix map, with `r=||s||`,
+
+```text
+x = mu + L s / (1-r**beta)**(1/beta)
+log|J| = log|det L| - (1+d/beta)*log(1-r**beta)
+u = solve(L, x-mu)
+s = u / (1+||u||**beta)**(1/beta)
+```
+
+The Mobius version applies the ball automorphism first, then the same radial
+map with scalar scale `radius`; its Jacobian includes the automorphism factor.
+Both forward maps and inverses support NumPy and JAX. The exponent must be a
+finite positive scalar. Omitting it uses beta=2. All exponents use the same
+general formulas; floating-point changes can alter individual rerun trajectories.
+
+For a fixed-beta fit, supply the exponent when fitting and reuse the saved map.
 
 ```python
-parameters, info, history = run_dcs_matrix_vi(
-    log_pdf_jax, dimension=d, mu=np.zeros(d),
-    preconditioning_matrix=np.sqrt(d + 1) * np.eye(d),
-    beta=3.0, tune=("preconditioning_matrix", "beta"),
+from generic_algorithms import (
+    run_dcs_matrix_vi, load_parameters, run_dcs_matrix_random_walk_experiment,
+)
+
+run_dcs_matrix_vi(
+    log_pdf_jax, d, mu=np.zeros(d), preconditioning_matrix=np.eye(d),
+    beta=4.0, output_json="fitted_parameters.json",
+)
+fitted = load_parameters("fitted_parameters.json", d, ["dcs"], beta=4.0)["dcs"]
+rows = run_dcs_matrix_random_walk_experiment(
+    log_pdf_numpy, initial_pairs, h=0.05, n_steps=1000,
+    **fitted, stop_at_meeting=True,
 )
 ```
 
-The optimizer learns `log(beta)` with 0.1 times the usual Adam learning rate.
-The Student-t(d+1) experiment uses this joint fit with mu=0. Its
-`run_experiment.py` sets the proposal steps explicitly and loads the fitted
-beta for sampling. SCS fits only its matrices, stereographic uses radius
-sqrt(d), and all five couplings use the saved results in the experiment's
-`results/` folder.
+The optional `beta` argument of `load_parameters` checks the exponent against
+an experiment's requested setting. Without that argument the loader retains
+the exponent from the file. DCS fits with beta only in VI metadata are also
+supported. Older DCS files with no exponent are treated as beta=2. Conflicting
+parameter/metadata values or a requested exponent different from the saved
+one raise an error. Refit DCS when changing the exponent of an existing VI
+fit; ball walk and Gaussian random walk can share that new fit. Existing
+beta=2 fits do not need to be rerun.
+
+Experiment controls are `DCS_BETA` in `skew_t/run_vi.py` and `DCS_BETAS` in
+the Student-t2 study's `run_vi.py` and the fixed normal study's
+`run_experiment.py`; these defaults remain 2.0. In the Student-t(d+1) study,
+`run_vi.py` fixes the center at zero and jointly fits the matrix and beta.
+Its `run_experiment.py` configures the proposal steps for each dimension.
+The two `*_large_beta` studies retain their population
+beta/scale optimizers but delegate transformations and production couplings
+to this library.
+
+Supporting an exponent mathematically does not guarantee finite reverse KL
+for every target: the normal-target population reverse KL requires beta>2.
+The paper's Student-t tail condition is satisfied when beta is no larger
+than the target degrees of freedom. These are target-dependent conditions,
+not a restriction imposed on all DCS transformations or MH samplers.

@@ -1,20 +1,31 @@
-"""Fit stereographic and matrix DCS maps by reverse KL, including DCS beta."""
+"""Fit stereographic, matrix DCS, and affine Euclidean maps by reverse KL."""
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import numpy as np
 
 from run_experiment import RESULTS
-from generic_algorithms import run_stereographic_vi, run_dcs_matrix_vi, save_parameters
+from generic_algorithms import (
+    run_euclidean_vi, run_stereographic_vi, run_dcs_matrix_vi, save_parameters,
+)
 from target import DIMENSIONS, make_log_density, target_info
 
 SEED = 20261112
+EUCLIDEAN_VI_SEED = 20261117
 VI_SETTINGS = dict(
     steps=6000, batch_size=2048, holdout_size=50000,
     average_last=500, learning_rates=(.01, .002), change_after=4500,
     chunk_size=250,
 )
 DCS_VI_SETTINGS = dict(VI_SETTINGS, steps=16000, change_after=12000)
+
+
+def fit_euclidean(d, seed, path, settings):
+    run_euclidean_vi(
+        make_log_density(d, jax=True), d, mu=np.full(d, .25),
+        preconditioning_matrix=np.eye(d),
+        tune=("mu", "preconditioning_matrix"), seed=seed,
+        output_json=path, target_info=target_info(d), **settings)
 
 
 def fit_stereographic(d, seed, path, settings):
@@ -47,6 +58,7 @@ def fit_dimension(d, folder):
         new_fit = Path(tmp) / path.name
         fit_stereographic(d, seed+1, new_fit, VI_SETTINGS)
         fit_dcs(d, seed+2, new_fit, DCS_VI_SETTINGS)
+        fit_euclidean(d, EUCLIDEAN_VI_SEED+1000*d+31, new_fit, VI_SETTINGS)
         new_fit.replace(path)
     print(f"d={d}: saved VI maps to {path}", flush=True)
 

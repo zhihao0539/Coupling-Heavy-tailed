@@ -92,6 +92,52 @@
     ],
     "beta": 6.83633639068047
   },
+  "euclidean": {
+    "mu": [
+      0.0003224199153180911,
+      0.00011199025269981018,
+      -0.0008576666244603333,
+      -0.0009384540880616297,
+      -0.0004991996714362368
+    ],
+    "preconditioning_matrix": [
+      [
+        0.9998863316928063,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.9000694430119571,
+        0.4357464742926977,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.8103609282914092,
+        0.3919089305932751,
+        0.4360250749592616,
+        0.0,
+        0.0
+      ],
+      [
+        0.7293418986018865,
+        0.3525774916483351,
+        0.3920016416017321,
+        0.43591293881144344,
+        0.0
+      ],
+      [
+        0.6567674576161919,
+        0.31702909762262677,
+        0.3529869877000082,
+        0.39247732361117643,
+        0.4358688023976164
+      ]
+    ]
+  },
   "vi_info": {
     "stereographic": {
       "dimension": 5,
@@ -188,6 +234,51 @@
         "rho": 0.9
       },
       "minimum_training_beta": 4
+    },
+    "euclidean": {
+      "dimension": 5,
+      "seed": 20266148,
+      "steps": 6000,
+      "batch_size": 2048,
+      "learning_rates": [
+        0.01,
+        0.002
+      ],
+      "change_after": 4500,
+      "average_last": 500,
+      "holdout_size": 50000,
+      "holdout_seed": 20266648,
+      "initial_holdout_loss": 20.841590785400733,
+      "candidate_holdout_losses": [
+        7.092032345072786,
+        7.091771868986053
+      ],
+      "chosen_candidate": "last_500_parameter_average",
+      "tuned_parameters": [
+        "mu",
+        "preconditioning_matrix"
+      ],
+      "fixed_parameters": [],
+      "theta_slices": {
+        "mu": [
+          0,
+          5
+        ],
+        "preconditioning_matrix": [
+          5,
+          20
+        ]
+      },
+      "method": "euclidean",
+      "variational_family": "full_covariance_gaussian",
+      "reference_distribution": "standard_gaussian",
+      "scale_parameterization": "full_cholesky",
+      "initial_scale_geometric_mean": 1.0,
+      "target_info": {
+        "target": "multivariate_normal_ar1",
+        "dimension": 5,
+        "rho": 0.9
+      }
     }
   }
 }

@@ -5,10 +5,29 @@ from pathlib import Path
 import numpy as np
 
 from .transformations import (
+    validate_euclidean_parameters,
     validate_stereographic_parameters, validate_scs_parameters,
     validate_dcs_parameters, validate_dcs_matrix_parameters,
     validate_dcs_beta,
 )
+
+
+def run_euclidean_vi(log_pdf, dimension, *, mu, preconditioning_matrix, tune=None,
+        output_json=None, label='euclidean', target_info=None,
+        seed=0, steps=4000, batch_size=2048,
+        learning_rates=(.01, .002), change_after=3000,
+        average_last=500, holdout_size=20000, chunk_size=250):
+    """Fit and optionally save an affine map using a Gaussian reference."""
+    from .vi import fit_euclidean_vi
+
+    print(f'Fitting the {label.upper()} map by VI', flush=True)
+    result = fit_euclidean_vi(log_pdf, dimension,
+        mu=mu, preconditioning_matrix=preconditioning_matrix,
+        tune=tune, seed=seed, steps=steps, batch_size=batch_size,
+        learning_rates=learning_rates, change_after=change_after,
+        average_last=average_last, holdout_size=holdout_size, chunk_size=chunk_size)
+    initial = dict(mu=mu, preconditioning_matrix=preconditioning_matrix)
+    return _finish_fit(result, initial, label, output_json, target_info)
 
 
 def run_stereographic_vi(log_pdf, dimension, *, mu, preconditioning_matrix, tune=None,
@@ -162,7 +181,9 @@ def load_parameters(path, dimension, methods, *, latitude=1.1, legacy_scs_latitu
         values = parameters[name]
         if method == 'dcs':
             values['beta'] = _saved_dcs_beta(values, info, beta)
-        if method == 'stereographic':
+        if method == 'euclidean':
+            validate_euclidean_parameters(values, dimension)
+        elif method == 'stereographic':
             validate_stereographic_parameters(values, dimension)
         elif method == 'scs':
             validate_scs_parameters(values, dimension, latitude)

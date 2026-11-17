@@ -1,0 +1,19 @@
+{
+  "h": 0.4,
+  "cutoff": 1000000,
+  "seconds": 95.2834333339706,
+  "n_pairs": 128,
+  "n_met": 119,
+  "n_censored": 9,
+  "mean_acceptance": 0.22663776062061314,
+  "acceptance_mcse": 0.014670801714514,
+  "mean_meeting_time": null,
+  "mean_meeting_time_met": 78666.83193277312,
+  "meeting_time_mcse": 11039.585381054992,
+  "median_meeting_time_met": 27735.0,
+  "maximum_meeting_time_met": 705778,
+  "mean_iterations": 143448.0703125,
+  "selection": "Closest tested full-cutoff pilot to 23% mean pair-level acceptance",
+  "native_proposal": "z_new = z + h epsilon, epsilon ~ N(0,I)",
+  "original_proposal_covariance": "h^2 L L^T, where L is the VI-fitted Cholesky factor"
+}

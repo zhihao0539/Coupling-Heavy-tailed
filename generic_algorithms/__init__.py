@@ -13,7 +13,7 @@ from .run_experiment import (
     combine_results, save_results,
 )
 from .run_vi import (
-    run_stereographic_vi, run_scs_vi, run_dcs_vi, run_dcs_matrix_vi,
+    run_euclidean_vi, run_stereographic_vi, run_scs_vi, run_dcs_vi, run_dcs_matrix_vi,
     load_parameters, save_parameters,
 )
 from .transformations import default_parameters, to_native, from_native, native_log_pdf

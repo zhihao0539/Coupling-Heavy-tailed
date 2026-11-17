@@ -64,6 +64,12 @@ def _validate_sphere_scale(parameters, dimension):
         _validate_radius(parameters.get('radius', np.nan))
 
 
+def validate_euclidean_parameters(parameters, dimension):
+    """Check the location and Cholesky factor of an affine Euclidean map."""
+    _validate_location(parameters['mu'], dimension)
+    _validate_matrix(parameters['preconditioning_matrix'], dimension)
+
+
 def validate_stereographic_parameters(parameters, dimension):
     """Check the location and scale of one stereographic map."""
     _validate_location(parameters['mu'], dimension)
@@ -97,6 +103,19 @@ def validate_dcs_matrix_parameters(parameters, dimension):
     if 'radius' in parameters or 'delta' in parameters:
         raise ValueError('Matrix DCS uses preconditioning_matrix without radius or delta.')
     _validate_matrix(parameters['preconditioning_matrix'], dimension)
+
+
+def affine_map(z, parameters, xp=np):
+    """x = mu + L z, with the constant log Jacobian log det L."""
+    scale = parameters['preconditioning_matrix']
+    x = parameters['mu'] + xp.matmul(z, xp.swapaxes(scale, -1, -2))
+    return x, xp.sum(xp.log(xp.diag(scale)))
+
+
+def affine_inverse(x, parameters, xp=np):
+    """Whiten Euclidean states with z = solve(L, x - mu)."""
+    return xp.linalg.solve(parameters['preconditioning_matrix'],
+                           (x - parameters['mu'])[..., None])[..., 0]
 
 
 def stereographic_map(z, parameters, xp=np):

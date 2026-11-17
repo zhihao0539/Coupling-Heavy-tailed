@@ -1,6 +1,6 @@
-"""Compare VI-tuned stereographic and matrix DCS ball-walk couplings.
+"""Compare fitted stereographic, matrix DCS ball-walk, and RWMH couplings.
 
-Both maps use the same saved initial pairs and iteration cutoff, with separate
+All three couplings use the same saved initial pairs and cutoff, with separate
 proposal step sizes.
 Loads the saved VI fits and uses each method's configured proposal step.
 """
@@ -14,10 +14,11 @@ FOLDER = Path(__file__).resolve().parent
 sys.path.insert(0, str(FOLDER.parent.parent))
 
 from generic_algorithms import (
-    run_stereographic_experiment, run_dcs_matrix_ball_experiment,
+    run_euclidean_experiment, run_stereographic_experiment, run_dcs_matrix_ball_experiment,
     load_parameters, combine_results, save_results,
 )
 from generic_algorithms.plot_results import plot_results
+from generic_algorithms.transformations import affine_inverse
 from student_t_regression.nba_salary.target import D, log_density
 from student_t_regression.nba_salary.run_vi import PARAMETERS_FILE
 
@@ -27,6 +28,7 @@ SEED = 42
 PROGRESS_EVERY = 10
 STEREOGRAPHIC_H = 0.1          # VI-tuned map's tangent-Gaussian scale.
 DCS_H = 0.049                 # Unit-ball radius; calibrated toward 23% acceptance.
+EUCLIDEAN_H = 0.265           # Whitened Gaussian step, calibrated toward 23% acceptance.
 INITIAL_STATES_FILE = FOLDER / 'initial_states.npz'
 OUTPUT = FOLDER / 'meeting_times.csv'
 
@@ -43,6 +45,21 @@ def load_initial_pairs(path, n_pairs):
     if not np.isfinite(starts).all():
         raise ValueError('Saved initial pairs must be finite.')
     return starts
+
+
+def run_euclidean(starts):
+    """Run the standard RWMH coupling in Gaussian-VI-whitened coordinates."""
+    fitted = load_parameters(PARAMETERS_FILE, D, ['euclidean'])['euclidean']
+    mu, scale = fitted['mu'], fitted['preconditioning_matrix']
+    log_det = np.log(np.diag(scale)).sum()
+
+    def whitened_log_density(z):
+        return log_density(mu + scale @ z) + log_det
+
+    return run_euclidean_experiment(
+        whitened_log_density, affine_inverse(starts, fitted), EUCLIDEAN_H, MAX_STEPS,
+        seed=SEED, seed_offset=200_000,
+        stop_at_meeting=True, progress_every=PROGRESS_EVERY)
 
 
 def run_stereographic(starts):
@@ -75,6 +92,7 @@ def plot_comparison(rows):
             styles={
                 'stereographic': ('Stereographic', 'tab:blue'),
                 'dcs': ('DCS Ball walk', 'tab:purple'),
+                'euclidean': ('RWMH', 'tab:orange'),
             })
 
 
@@ -83,6 +101,7 @@ def main():
     rows = combine_results(
         run_stereographic(starts),
         run_dcs(starts),
+        run_euclidean(starts),
     )
     save_results(rows, OUTPUT)
     plot_comparison(rows)

@@ -10,12 +10,13 @@ FOLDER = Path(__file__).resolve().parent
 sys.path.insert(0,str(FOLDER.parents[1]))
 
 from generic_algorithms import load_parameters
+from generic_algorithms.transformations import affine_map, affine_inverse
 from unbiased_poisson import pilot_lag, run_upave
 from unbiased_poisson.kernels import (
     euclidean_kernels, stereographic_kernels, dcs_matrix_ball_kernels,
 )
 from target import RHO, make_log_density
-from run_experiment import STEP_SIZES, RESULTS
+from run_experiment import STEP_SIZES, RESULTS, fitted_parameters
 
 D = 50
 N_REP = 100
@@ -60,6 +61,7 @@ def replicate_rows(method,result,pilot,seed_offset,beta):
         elapsed_seconds=row['elapsed_seconds'],lag=pilot['lag'],k=pilot['k'],ell=pilot['ell'],R=R,
         cutoff=MAX_ITERATIONS,step_size=STEP_SIZES[method][D],beta=beta,dimension=D,rho=RHO,
         initial_distribution='N(0,I)',observable='x1',seed=SEED+seed_offset,
+        map_source='gaussian_reverse_kl' if method=='euclidean' else 'reverse_kl',
         implementation='stored_signed_measure') for i,row in enumerate(result['replicates'])]
 
 
@@ -75,6 +77,7 @@ def save_run(method,result,pilot,seed_offset,beta):
         estimator_inefficiency=result['estimator_inefficiency'],
         lag=pilot['lag'],k=pilot['k'],ell=pilot['ell'],R=R,cutoff=MAX_ITERATIONS,
         step_size=STEP_SIZES[method][D],beta=beta,implementation='stored_signed_measure')
+    summary['map_source']='gaussian_reverse_kl' if method=='euclidean' else 'reverse_kl'
     save_csv([summary],OUTPUT/f'{method}_summary.csv')
     print(f"{method}: v(P,h)={summary['mean_v']:.6g}, MCSE={mcse:.6g}",flush=True)
     return summary
@@ -105,7 +108,15 @@ def run_dcs():
 
 
 def run_euclidean():
-    kernels=euclidean_kernels(LOG_DENSITY,STEP_SIZES['euclidean'][D])
+    parameters=fitted_parameters(D,'euclidean')
+
+    def whitened_log_density(z):
+        x,log_jacobian=affine_map(z,parameters)
+        return LOG_DENSITY(x)+log_jacobian
+
+    kernels=euclidean_kernels(whitened_log_density,STEP_SIZES['euclidean'][D])
+    kernels['to_native']=lambda x: affine_inverse(x,parameters)
+    kernels['to_euclidean']=lambda z: affine_map(z,parameters)[0]
     return estimate_method('euclidean',kernels,200_000)
 
 
